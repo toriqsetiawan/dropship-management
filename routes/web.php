@@ -11,6 +11,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\LanguageController;
+use App\Http\Controllers\ProductController;
 
 /*
 |--------------------------------------------------------------------------
@@ -210,4 +211,9 @@ Route::middleware(['auth', 'role:distributor'])->group(function () {
 
 Route::middleware(['auth', 'role:reseller'])->group(function () {
     // Routes for resellers
+});
+
+// Product Routes
+Route::middleware(['auth'])->group(function () {
+    Route::resource('products', ProductController::class);
 });
