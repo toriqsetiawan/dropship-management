@@ -1,21 +1,34 @@
 <x-authentication-layout>
+    {{-- Language Switcher --}}
+    <div class="flex justify-end mb-4">
+        <form method="POST" action="{{ route('language.change') }}">
+            @csrf
+            <div class="relative inline-block w-40">
+                <select name="locale" onchange="this.form.submit()"
+                    class="appearance-none w-full bg-white border border-gray-300 text-gray-700 py-2 pl-3 pr-8 rounded leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200">
+                    <option value="en" {{ app()->getLocale() == 'en' ? 'selected' : '' }}>English</option>
+                    <option value="id" {{ app()->getLocale() == 'id' ? 'selected' : '' }}>Indonesia</option>
+                </select>
+            </div>
+        </form>
+    </div>
     <h1 class="text-3xl text-gray-800 dark:text-gray-100 font-bold mb-6">{{ __('Welcome back!') }}</h1>
     @if (session('status'))
         <div class="mb-4 font-medium text-sm text-green-600">
             {{ session('status') }}
         </div>
-    @endif   
+    @endif
     <!-- Form -->
     <form method="POST" action="{{ route('login') }}">
         @csrf
         <div class="space-y-4">
             <div>
                 <x-label for="email" value="{{ __('Email') }}" />
-                <x-input id="email" type="email" name="email" :value="old('email')" required autofocus />                
+                <x-input id="email" type="email" name="email" :value="old('email')" required autofocus />
             </div>
             <div>
                 <x-label for="password" value="{{ __('Password') }}" />
-                <x-input id="password" type="password" name="password" required autocomplete="current-password" />                
+                <x-input id="password" type="password" name="password" required autocomplete="current-password" />
             </div>
         </div>
         <div class="flex items-center justify-between mt-6">
@@ -25,28 +38,17 @@
                         {{ __('Forgot Password?') }}
                     </a>
                 </div>
-            @endif            
+            @endif
             <x-button class="ml-3">
                 {{ __('Sign in') }}
-            </x-button>            
+            </x-button>
         </div>
     </form>
-    <x-validation-errors class="mt-4" />   
+    <x-validation-errors class="mt-4" />
     <!-- Footer -->
     <div class="pt-5 mt-6 border-t border-gray-100 dark:border-gray-700/60">
         <div class="text-sm">
             {{ __('Don\'t you have an account?') }} <a class="font-medium text-violet-500 hover:text-violet-600 dark:hover:text-violet-400" href="{{ route('register') }}">{{ __('Sign Up') }}</a>
-        </div>
-        <!-- Warning -->
-        <div class="mt-5">
-            <div class="bg-yellow-500/20 text-yellow-700 px-3 py-2 rounded-lg">
-                <svg class="inline w-3 h-3 shrink-0 fill-current" viewBox="0 0 12 12">
-                    <path d="M10.28 1.28L3.989 7.575 1.695 5.28A1 1 0 00.28 6.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 1.28z" />
-                </svg>
-                <span class="text-sm">
-                    To support you during the pandemic super pro features are free until March 31st.
-                </span>
-            </div>
         </div>
     </div>
 </x-authentication-layout>
