@@ -4,6 +4,7 @@ return [
     'title' => 'Pemasok',
     'supplier' => 'Pemasok',
     'add' => 'Tambah Pemasok',
+    'add_new' => 'Tambah Pemasok Baru',
     'edit' => 'Ubah Pemasok',
     'list' => 'Daftar Pemasok',
     'all_suppliers' => 'Semua Pemasok',
@@ -23,5 +24,13 @@ return [
         'updated' => 'Pemasok berhasil diperbarui.',
         'deleted' => 'Pemasok berhasil dihapus.',
         'delete_confirm' => 'Apakah Anda yakin ingin menghapus pemasok ini?',
+    ],
+    'actions' => [
+        'create' => 'Buat Pemasok Baru',
+        'edit' => 'Ubah',
+        'delete' => 'Hapus',
+        'save' => 'Simpan',
+        'cancel' => 'Batal',
+        'back' => 'Kembali',
     ],
 ];

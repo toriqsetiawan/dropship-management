@@ -214,3 +214,14 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('language/{locale}', [LanguageController::class, 'switch'])
         ->name('language.switch');
 });
+
+// Product routes
+Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
+    Route::get('/products', App\Livewire\Product\ProductList::class)->name('products.index');
+    Route::get('/products/create', function () {
+        return view('pages.product.create');
+    })->name('products.create');
+    Route::get('/products/{product}/edit', function (App\Models\Product $product) {
+        return view('pages.product.edit', compact('product'));
+    })->name('products.edit');
+});

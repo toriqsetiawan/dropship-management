@@ -52,7 +52,16 @@
                         <a class="block text-gray-800 dark:text-gray-100 truncate transition @if(!in_array(Request::segment(1), ['supplier'])){{ 'hover:text-gray-900 dark:hover:text-white' }}@endif" href="{{ route('supplier') }}">
                             <div class="flex items-center">
                                 <i class="fa-solid fa-truck w-4 h-4 @if(in_array(Request::segment(1), ['supplier'])){{ 'text-violet-500' }}@else{{ 'text-gray-400 dark:text-gray-500' }}@endif"></i>
-                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">Supplier</span>
+                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">{{ __('supplier.title') }}</span>
+                            </div>
+                        </a>
+                    </li>
+                    <!-- Products -->
+                    <li class="pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-linear-to-r @if(in_array(Request::segment(1), ['products'])){{ 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]' }}@endif">
+                        <a class="block text-gray-800 dark:text-gray-100 truncate transition @if(!in_array(Request::segment(1), ['products'])){{ 'hover:text-gray-900 dark:hover:text-white' }}@endif" href="{{ route('products.index') }}">
+                            <div class="flex items-center">
+                                <i class="fa-solid fa-box w-4 h-4 @if(in_array(Request::segment(1), ['products'])){{ 'text-violet-500' }}@else{{ 'text-gray-400 dark:text-gray-500' }}@endif"></i>
+                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">{{ __('product.title') }}</span>
                             </div>
                         </a>
                     </li>

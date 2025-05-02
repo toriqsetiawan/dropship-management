@@ -38,7 +38,7 @@
                 __('user.fields.email'),
                 __('user.fields.role'),
                 __('user.fields.created_at'),
-                __('Actions')
+                __('common.actions_column')
             ]"
             :title="__('user.title')"
             :meta="$users->total()"

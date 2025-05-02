@@ -16,7 +16,7 @@
                     <svg class="w-4 h-4 fill-current opacity-50 shrink-0" viewBox="0 0 16 16">
                         <path d="M15 7H9V1c0-.6-.4-1-1-1S7 .4 7 1v6H1c-.6 0-1 .4-1 1s.4 1 1 1h6v6c0 .6.4 1 1 1s1-.4 1-1V9h6c.6 0 1-.4 1-1s-.4-1-1-1z" />
                     </svg>
-                    <span class="hidden xs:block ml-2">{{ __('supplier.add_new') }}</span>
+                    <span class="hidden xs:block ml-2">{{ __('supplier.actions.create') }}</span>
                 </a>
             </div>
 
@@ -29,7 +29,7 @@
                 __('supplier.email'),
                 __('supplier.phone'),
                 __('supplier.status'),
-                __('supplier.actions')
+                __('common.actions_column')
             ]"
             :title="__('supplier.all_suppliers')"
             :meta="$suppliers->total()"
@@ -47,7 +47,7 @@
                     </td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
                         <div class="inline-flex font-medium rounded-full text-center px-2.5 py-0.5 {{ $supplier->status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500' }}">
-                            {{ __('supplier.' . $supplier->status) }}
+                            {{ __('supplier.status_' . $supplier->status) }}
                         </div>
                     </td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap w-px">
@@ -79,9 +79,13 @@
         </div>
 
         <!-- Delete Confirmation Modal Component -->
-        <x-modal.delete-confirmation>
-            <x-slot:title>{{ __('supplier.delete_title') }}</x-slot:title>
-            {{ __('supplier.delete_warning') }}
+        <x-modal.delete-confirmation
+            :title="__('supplier.delete_title')"
+            :confirm-text="__('supplier.messages.delete_confirm')"
+            :delete-text="__('supplier.actions.delete')"
+            :cancel-text="__('common.actions.cancel')"
+        >
+            {{ __('common.messages.delete_warning') }}
         </x-modal.delete-confirmation>
     </div>
 </x-app-layout>

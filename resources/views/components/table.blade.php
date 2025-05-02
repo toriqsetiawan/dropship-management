@@ -29,7 +29,9 @@
                     <tr>
                         @foreach($headers as $header)
                         <th class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                            <div class="font-semibold text-left">{{ $header }}</div>
+                            <div class="font-semibold {{ is_array($header) ? ($header['align'] === 'right' ? 'text-right' : 'text-left') : 'text-left' }}">
+                                {{ is_array($header) ? $header['text'] : $header }}
+                            </div>
                         </th>
                         @endforeach
                     </tr>

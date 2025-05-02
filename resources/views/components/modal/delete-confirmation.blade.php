@@ -1,3 +1,9 @@
+@props([
+    'confirmText' => null,
+    'deleteText' => null,
+    'cancelText' => null
+])
+
 <div
     x-data="{
         show: false,
@@ -62,10 +68,10 @@
                     <i class="fa-solid fa-exclamation-triangle text-red-600"></i>
                 </div>
                 <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                    <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100">{{ $title ?? 'Delete Confirmation' }}</h3>
+                    <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100">{{ $title ?? __('common.messages.delete_title') }}</h3>
                     <div class="mt-2">
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                            {{ __('supplier.delete_confirm') }} <span x-text="itemName" class="font-medium"></span>? {{ $slot }}
+                            {{ $confirmText ?? __('common.messages.delete_confirm') }} <span x-text="itemName" class="font-medium"></span>? {{ $slot }}
                         </p>
                     </div>
                 </div>
@@ -76,11 +82,11 @@
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="inline-flex w-full justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm">
-                        {{ __('supplier.delete') }}
+                        {{ $deleteText ?? __('common.actions.delete') }}
                     </button>
                 </form>
                 <button @click="show = false" type="button" class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm">
-                    {{ __('supplier.cancel') }}
+                    {{ $cancelText ?? __('common.actions.cancel') }}
                 </button>
             </div>
         </div>

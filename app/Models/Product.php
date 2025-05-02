@@ -40,4 +40,5 @@ class Product extends Model
     {
         return $this->hasManyThrough(TransactionItem::class, ProductVariant::class);
     }
+
 }
