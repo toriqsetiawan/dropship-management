@@ -65,6 +65,8 @@ class ProductForm extends Component
             // Extract unique attributes and their values from variants (rollback: only name and values as strings)
             $attributeMap = [];
             foreach ($this->product->variants as $variant) {
+                $attributeSet = [];
+                $valueStrings = [];
                 foreach ($variant->attributeValues as $value) {
                     $attrId = $value->attribute->id;
                     $attrName = $value->attribute->name;
@@ -74,10 +76,31 @@ class ProductForm extends Component
                             'values' => [],
                         ];
                     }
-                    if (!in_array($value->value, $attributeMap[$attrId]['values'])) {
-                        $attributeMap[$attrId]['values'][] = $value->value;
+                    // Find if value already exists
+                    $valueIndex = array_search($value->value, array_column($attributeMap[$attrId]['values'], 'value'));
+                    if ($valueIndex === false) {
+                        $attributeMap[$attrId]['values'][] = [
+                            'value' => $value->value,
+                            'price' => $variant->retail_price,
+                            'stock' => $variant->stock,
+                            'sku' => $variant->sku,
+                        ];
+                    }
+                    $attributeSet[$value->attribute_id] = $value->id;
+                    $valueStrings[] = $value->value;
+                    // Add to selected attributes if not already selected
+                    if (!in_array($value->attribute_id, $this->selectedAttributes)) {
+                        $this->selectedAttributes[] = $value->attribute_id;
                     }
                 }
+                $this->variants[] = [
+                    'id' => $variant->id,
+                    'attributes' => $attributeSet,
+                    'sku' => $variant->sku,
+                    'stock' => $variant->stock,
+                    'retail_price' => $variant->retail_price,
+                    'key' => implode('|', $valueStrings), // Add key for frontend matching
+                ];
             }
             $this->productAttributes = array_values($attributeMap);
         }
@@ -179,21 +202,22 @@ class ProductForm extends Component
 
         foreach ($this->product->variants as $variant) {
             $attributeSet = [];
+            $valueStrings = [];
             foreach ($variant->attributeValues as $value) {
                 $attributeSet[$value->attribute_id] = $value->id;
-
+                $valueStrings[] = $value->value;
                 // Add to selected attributes if not already selected
                 if (!in_array($value->attribute_id, $this->selectedAttributes)) {
                     $this->selectedAttributes[] = $value->attribute_id;
                 }
             }
-
             $this->variants[] = [
                 'id' => $variant->id,
                 'attributes' => $attributeSet,
                 'sku' => $variant->sku,
                 'stock' => $variant->stock,
                 'retail_price' => $variant->retail_price,
+                'key' => implode('|', $valueStrings), // Add key for frontend matching
             ];
         }
         // Ensure only unique attribute IDs

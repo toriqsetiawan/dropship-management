@@ -48,7 +48,7 @@
                     </div>
 
                     <!-- Price Group -->
-                    <div class="sm:col-span-6">
+                    <div class="sm:col-span-12">
                         <h4 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">
                             {{ __('product.sections.price_group') }}
                         </h4>
@@ -201,7 +201,10 @@
                                     this.variants = [];
                                     return;
                                 }
-                                let valueArrays = this.attributes.map(attr => attr.values);
+                                // Ensure all values are strings
+                                let valueArrays = this.attributes.map(attr =>
+                                    attr.values.map(v => typeof v === 'object' ? v.value : v)
+                                );
                                 if (valueArrays.some(arr => !arr.length)) {
                                     this.variants = [];
                                     return;
@@ -209,14 +212,13 @@
                                 let combos = this.cartesian(valueArrays);
                                 let backendVariants = JSON.parse(localStorage.getItem('productVariants') || '[]');
                                 this.variants = combos.map((combo, idx) => {
-                                    // Try to find a matching backend variant
-                                    let prev = backendVariants.find(v => JSON.stringify(v.values) === JSON.stringify(combo));
-                                    // Use variant_id from backend if available, otherwise fallback to a unique string
-                                    let key = prev && prev.variant_id ? prev.variant_id : combo.join('|') + '|' + idx;
+                                    let keyBase = combo.join('|');
+                                    let key = keyBase + '|' + idx; // idx ensures uniqueness
+                                    let prev = backendVariants.find(v => v.key === keyBase);
                                     return {
                                         key,
                                         values: combo,
-                                        price: prev ? prev.price : '',
+                                        price: prev ? prev.retail_price : '',
                                         stock: prev ? prev.stock : '',
                                         sku: prev ? prev.sku : ''
                                     };
@@ -300,7 +302,7 @@
                                     <li class="mb-2 flex items-center justify-between">
                                         <div>
                                             <span class="font-medium" x-text="attribute.name"></span>:
-                                            <span x-text="attribute.values.join(', ')"></span>
+                                            <span x-text="attribute.values.map(v => typeof v === 'object' ? v.value : v).join(', ')"></span>
                                         </div>
                                         <div>
                                             <button type="button" @click="startEdit(index)" class="text-violet-500 hover:text-violet-600 mr-2">Edit</button>
