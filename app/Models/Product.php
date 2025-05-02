@@ -2,52 +2,42 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'category_id',
-        'name',
-        'slug',
+        'supplier_id',
         'sku',
-        'description',
-        'size_chart',
-        'weight',
-        'dimensions',
-        'is_active',
+        'name',
+        'size',
+        'factory_price',
+        'distributor_price',
+        'reseller_price',
     ];
 
-    public function category()
+    protected $casts = [
+        'factory_price' => 'decimal:2',
+        'distributor_price' => 'decimal:2',
+        'reseller_price' => 'decimal:2',
+    ];
+
+    public function supplier()
     {
-        return $this->belongsTo(ProductCategory::class);
+        return $this->belongsTo(Supplier::class);
     }
 
-    public function images()
+    public function variants()
     {
-        return $this->hasMany(ProductImage::class);
+        return $this->hasMany(ProductVariant::class);
     }
 
-    public function attributeCombinations()
+    public function transactionItems()
     {
-        return $this->hasMany(ProductAttributeCombination::class);
-    }
-
-    public function prices()
-    {
-        return $this->hasMany(ProductPrice::class);
-    }
-
-    public function getPriceForRole($roleId)
-    {
-        return $this->prices()->where('role_id', $roleId)->first();
-    }
-
-    public function getPrimaryImage()
-    {
-        return $this->images()->where('is_primary', true)->first();
+        return $this->hasManyThrough(TransactionItem::class, ProductVariant::class);
     }
 }

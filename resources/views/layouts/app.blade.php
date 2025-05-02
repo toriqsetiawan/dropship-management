@@ -12,11 +12,19 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet" />
 
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
         <!-- Styles -->
         @livewireStyles
+        <style>
+            [x-cloak] {
+                display: none !important;
+            }
+        </style>
 
         <script>
             if (localStorage.getItem('dark-mode') === 'false' || !('dark-mode' in localStorage)) {
@@ -46,19 +54,15 @@
         <!-- Page wrapper -->
         <div class="flex h-[100dvh] overflow-hidden">
 
-            <x-app.sidebar :variant="$attributes['sidebarVariant'] ?? 'default'" />
+            <x-app.sidebar :variant="$attributes['sidebarVariant']" />
 
             <!-- Content area -->
-            <div class="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden @if(isset($attributes['background'])){{ $attributes['background'] }}@endif" x-ref="contentarea">
+            <div class="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden @if($attributes['background']){{ $attributes['background'] }}@endif" x-ref="contentarea">
 
-                <x-app.header :variant="$attributes['headerVariant'] ?? 'default'" />
+                <x-app.header :variant="$attributes['headerVariant']" />
 
                 <main class="grow">
-                    @if(isset($slot))
-                        {{ $slot }}
-                    @else
-                        @yield('content')
-                    @endif
+                    {{ $slot }}
                 </main>
 
             </div>
@@ -66,6 +70,5 @@
         </div>
 
         @livewireScriptConfig
-        @stack('scripts')
     </body>
 </html>

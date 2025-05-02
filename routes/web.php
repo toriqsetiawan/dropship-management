@@ -10,8 +10,9 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\LanguageController;
-use App\Http\Controllers\ProductController;
+use App\Http\Controllers\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,14 +27,25 @@ use App\Http\Controllers\ProductController;
 
 Route::redirect('/', 'login');
 
-Route::post('/change-language', [LanguageController::class, 'change'])->name('language.change');
-
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
-
-    // Route for the getting the data feed
-    Route::get('/json-data-feed', [DataFeedController::class, 'getDataFeed'])->name('json_data_feed');
-
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/supplier', [SupplierController::class, 'index'])->name('supplier');
+    Route::get('/supplier/create', [SupplierController::class, 'create'])->name('supplier.create');
+    Route::post('/supplier', [SupplierController::class, 'store'])->name('supplier.store');
+    Route::get('/supplier/{id}', [SupplierController::class, 'show'])->name('supplier.show');
+    Route::get('/supplier/{id}/edit', [SupplierController::class, 'edit'])->name('supplier.edit');
+    Route::put('/supplier/{id}', [SupplierController::class, 'update'])->name('supplier.update');
+    Route::delete('/supplier/{id}', [SupplierController::class, 'destroy'])->name('supplier.destroy');
+
+    // User Management Routes
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
     Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])->name('analytics');
     Route::get('/dashboard/fintech', [DashboardController::class, 'fintech'])->name('fintech');
     Route::get('/ecommerce/customers', [CustomerController::class, 'index'])->name('customers');
@@ -198,22 +210,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::fallback(function() {
         return view('pages/utility/404');
     });
-});
 
-// Example route protection
-Route::middleware(['auth', 'role:product_owner'])->group(function () {
-    // Routes for product owners
-});
-
-Route::middleware(['auth', 'role:distributor'])->group(function () {
-    // Routes for distributors
-});
-
-Route::middleware(['auth', 'role:reseller'])->group(function () {
-    // Routes for resellers
-});
-
-// Product Routes
-Route::middleware(['auth'])->group(function () {
-    Route::resource('products', ProductController::class);
+    Route::get('language/{locale}', [LanguageController::class, 'switch'])
+        ->name('language.switch');
 });

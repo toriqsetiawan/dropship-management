@@ -7,16 +7,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
-use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
+use Laravel\Jetstream\HasProfilePhoto;
 
 class User extends Authenticatable
 {
     use HasApiTokens;
     use HasFactory;
-    use HasProfilePhoto;
     use Notifiable;
     use TwoFactorAuthenticatable;
+    use HasProfilePhoto;
 
     /**
      * The attributes that are mass assignable.
@@ -27,8 +27,12 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'parent_id',
-        'role',
+        'role_id',
+        'current_team_id',
+        'profile_photo_path',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at'
     ];
 
     /**
@@ -50,6 +54,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'two_factor_confirmed_at' => 'datetime'
     ];
 
     /**
@@ -62,69 +67,52 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the parent user (distributor) of this user.
+     * Get the role that owns the user.
      */
-    public function parent()
+    public function role()
     {
-        return $this->belongsTo(User::class, 'parent_id');
+        return $this->belongsTo(Role::class);
     }
 
     /**
-     * Get the child users (resellers) of this user.
+     * Get the transactions for the user.
      */
-    public function children()
+    public function transactions()
     {
-        return $this->hasMany(User::class, 'parent_id');
+        return $this->hasMany(Transaction::class);
     }
 
     /**
-     * Check if user is a product owner
+     * Get the transaction items for the user through transactions.
      */
-    public function isProductOwner()
+    public function transactionItems()
     {
-        return $this->role === 'product_owner';
+        return $this->hasManyThrough(TransactionItem::class, Transaction::class);
     }
 
     /**
-     * Check if user is a distributor
+     * Get the products for the user through transactions.
      */
-    public function isDistributor()
+    public function products()
     {
-        return $this->role === 'distributor';
+        return $this->hasManyThrough(Product::class, Transaction::class, 'user_id', 'id', 'id', 'id');
     }
 
     /**
-     * Check if user is a reseller
+     * Get the variants for the user through transactions.
      */
-    public function isReseller()
+    public function variants()
     {
-        return $this->role === 'reseller';
+        return $this->hasManyThrough(ProductVariant::class, Transaction::class, 'user_id', 'id', 'id', 'id');
     }
 
     /**
-     * Check if user has a specific role
+     * The default profile photo URL if no photo has been uploaded.
+     *
+     * @return string
      */
-    public function hasRole($role)
+    protected function defaultProfilePhotoUrl()
     {
-        return $this->role === $role;
-    }
-
-    /**
-     * Get all resellers under this user (recursive)
-     */
-    public function getAllResellers()
-    {
-        $resellers = collect();
-
-        if ($this->isDistributor()) {
-            $resellers = $this->children()->where('role', 'reseller')->get();
-        } elseif ($this->isProductOwner()) {
-            $distributors = $this->children()->where('role', 'distributor')->get();
-            foreach ($distributors as $distributor) {
-                $resellers = $resellers->merge($distributor->children()->where('role', 'reseller')->get());
-            }
-        }
-
-        return $resellers;
+        return asset('images/user-avatar-32.png');
     }
 }

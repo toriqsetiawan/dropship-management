@@ -9,7 +9,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $dataFeed = new DataFeed();
+        $dataFeed = null;
 
         return view('pages/dashboard/dashboard', compact('dataFeed'));
     }

@@ -7,31 +7,23 @@ use Illuminate\Database\Seeder;
 
 class RoleSeeder extends Seeder
 {
-    public function run(): void
+    /**
+     * Run the database seeds.
+     *
+     * @return void
+     */
+    public function run()
     {
         $roles = [
-            [
-                'name' => 'Product Owner',
-                'slug' => 'product_owner',
-                'description' => 'Product owner with full access to manage products and pricing'
-            ],
-            [
-                'name' => 'Distributor',
-                'slug' => 'distributor',
-                'description' => 'Distributor with access to manage resellers and view products'
-            ],
-            [
-                'name' => 'Reseller',
-                'slug' => 'reseller',
-                'description' => 'Reseller with access to view and sell products'
-            ]
+            ['name' => 'administrator', 'description' => 'System administrator'],
+            ['name' => 'admin', 'description' => 'Admins linked to stores'],
+            ['name' => 'distributor', 'description' => 'Distributor linked to stores'],
+            ['name' => 'reseller', 'description' => 'Resellers linked to stores'],
+            ['name' => 'retail', 'description' => 'Retail linked to stores'],
         ];
 
         foreach ($roles as $role) {
-            Role::firstOrCreate(
-                ['slug' => $role['slug']], // Check if exists by slug
-                $role // Data to create if it doesn't exist
-            );
+            Role::updateOrCreate(['name' => $role['name']], $role);
         }
     }
 }
