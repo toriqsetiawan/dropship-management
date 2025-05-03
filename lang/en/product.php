@@ -41,6 +41,7 @@ return [
         'bulk_price' => 'Bulk Price Update',
         'bulk_stock' => 'Bulk Stock Update',
         'bulk_sku_prefix' => 'Bulk SKU Prefix',
+        'image' => 'Image',
     ],
 
     'attribute_types' => [

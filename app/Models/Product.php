@@ -14,6 +14,7 @@ class Product extends Model
         'supplier_id',
         'sku',
         'name',
+        'image',
         'size',
         'factory_price',
         'distributor_price',
@@ -39,6 +40,13 @@ class Product extends Model
     public function transactionItems()
     {
         return $this->hasManyThrough(TransactionItem::class, ProductVariant::class);
+    }
+
+    public function getImageUrlAttribute()
+    {
+        return $this->image
+            ? asset('storage/products/' . $this->image)
+            : asset('images/placeholder.png');
     }
 
 }

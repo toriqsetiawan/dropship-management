@@ -15,10 +15,10 @@ return [
     'sections' => [
         'basic_info' => 'Informasi Dasar',
         'basic_info_description' => 'Masukkan informasi dasar dan harga produk.',
-        'attributes' => 'Atribut Produk',
-        'attributes_description' => 'Pilih atribut untuk menghasilkan varian produk.',
+        'attributes' => 'Varian Produk',
+        'attributes_description' => 'Pilih varian untuk menghasilkan varian produk.',
         'variants' => 'Varian Produk',
-        'add_attribute' => 'Tambah Atribut Baru',
+        'add_attribute' => 'Tambah Varian Baru',
         'price_group' => 'Kelompok Harga',
     ],
 
@@ -35,12 +35,13 @@ return [
         'sku' => 'SKU',
         'stock' => 'Stok',
         'created_at' => 'Dibuat Pada',
-        'attribute_name' => 'Nama Atribut',
-        'attribute_type' => 'Tipe Atribut',
-        'attribute_values' => 'Nilai Atribut',
+        'attribute_name' => 'Nama Varian',
+        'attribute_type' => 'Tipe Varian',
+        'attribute_values' => 'Nilai Varian',
         'bulk_price' => 'Update Harga Massal',
         'bulk_stock' => 'Update Stok Massal',
         'bulk_sku_prefix' => 'Awalan SKU Massal',
+        'image' => 'Gambar',
     ],
 
     'attribute_types' => [
@@ -64,9 +65,9 @@ return [
         'updated' => 'Produk berhasil diperbarui.',
         'deleted' => 'Produk berhasil dihapus.',
         'delete_confirm' => 'Apakah Anda yakin ingin menghapus',
-        'max_attributes' => 'Anda dapat memilih maksimal 2 atribut.',
-        'max_attributes_reached' => 'Jumlah maksimal atribut (2) telah tercapai.',
-        'no_attributes' => 'Tidak ada atribut tersedia. Tambahkan beberapa atribut terlebih dahulu.',
+        'max_attributes' => 'Anda dapat memilih maksimal 2 varian.',
+        'max_attributes_reached' => 'Jumlah maksimal varian (2) telah tercapai.',
+        'no_attributes' => 'Tidak ada varian tersedia. Tambahkan beberapa varian terlebih dahulu.',
         'attribute_values_help' => 'Masukkan nilai dipisahkan dengan koma',
     ],
 
@@ -74,7 +75,7 @@ return [
         'create' => 'Buat Produk Baru',
         'edit' => 'Ubah',
         'delete' => 'Hapus',
-        'add_attribute' => 'Tambah Atribut',
+        'add_attribute' => 'Tambah Varian',
     ],
 
     'delete_warning' => 'Tindakan ini tidak dapat dibatalkan. Ini akan menghapus produk dan semua variannya secara permanen.',

@@ -37,6 +37,7 @@
         <!-- Table -->
         <x-table
             :headers="[
+                ['text' => 'Image', 'align' => 'left'],
                 ['text' => __('product.fields.name'), 'align' => 'left'],
                 ['text' => __('product.fields.variants'), 'align' => 'left'],
                 ['text' => __('product.fields.factory_price'), 'align' => 'right'],
@@ -49,6 +50,9 @@
         >
             @forelse ($products as $product)
                 <tr>
+                    <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
+                        <img src="{{ $product->image_url }}" alt="Product Image" class="h-12 w-12 object-cover rounded" />
+                    </td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
                         <div class="font-medium text-gray-800 dark:text-gray-100">{{ $product->name }}</div>
                     </td>

@@ -1,4 +1,15 @@
 <div>
+    @if ($errors->any())
+        <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+            <strong>Validation Errors:</strong>
+            <ul class="mt-2 list-disc list-inside">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <form wire:submit="save" class="space-y-8">
         <div class="space-y-8 pb-6 divide-y divide-gray-200 dark:divide-gray-700">
             <!-- Basic Information -->
@@ -45,6 +56,24 @@
                             />
                         </div>
                         <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                    </div>
+
+                    <!-- Image Upload -->
+                    <div class="sm:col-span-6">
+                        <x-label for="image" :value="__('product.fields.image') ?? 'Image'" />
+                        <div class="mt-1 flex items-center space-x-4">
+                            <input type="file" id="image" wire:model="image" class="hidden" />
+                            <label for="image" class="cursor-pointer">
+                                @if ($image)
+                                    <img src="{{ $image->temporaryUrl() }}" class="h-24 w-24 object-cover rounded border-2 border-dashed border-gray-300 hover:border-violet-500 transition" alt="Preview" />
+                                @elseif (isset($product) && $product->image)
+                                    <img src="{{ $product->image_url }}" class="h-24 w-24 object-cover rounded border-2 border-dashed border-gray-300 hover:border-violet-500 transition" alt="Current" />
+                                @else
+                                    <img src="{{ asset('images/placeholder.png') }}" class="h-24 w-24 object-cover rounded border-2 border-dashed border-gray-300 hover:border-violet-500 transition" alt="Placeholder" />
+                                @endif
+                            </label>
+                        </div>
+                        <x-input-error :messages="$errors->get('image')" class="mt-2" />
                     </div>
 
                     <!-- Price Group -->
@@ -292,6 +321,11 @@
                             <template x-if="attributeError">
                                 <div class="text-red-500 text-sm mt-2" x-text="attributeError"></div>
                             </template>
+                            @if ($errors->has('variants') && count($variants) === 0)
+                                <div class="text-red-500 text-sm mt-2">
+                                    {{ $errors->first('variants') }}
+                                </div>
+                            @endif
                         </div>
 
                         <!-- Attribute List -->
@@ -417,10 +451,10 @@
 
         <div class="pt-5">
             <div class="flex justify-end">
-                <x-button type="button" onclick="window.history.back()" class="bg-gray-600 hover:bg-gray-700 mr-3">
+                <x-button type="button" onclick="window.history.back()" class="bg-gray-600 hover:bg-gray-700 mr-3 cursor-pointer">
                     {{ __('common.actions.back') }}
                 </x-button>
-                <x-button>
+                <x-button class="cursor-pointer">
                     {{ __('common.actions.save') }}
                 </x-button>
             </div>

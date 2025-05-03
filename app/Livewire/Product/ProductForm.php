@@ -9,9 +9,12 @@ use App\Models\ProductVariant;
 use App\Models\Supplier;
 use Livewire\Component;
 use Illuminate\Support\Str;
+use Livewire\WithFileUploads;
 
 class ProductForm extends Component
 {
+    use WithFileUploads;
+
     public $product;
     public $productId;
     public $name;
@@ -20,6 +23,7 @@ class ProductForm extends Component
     public $distributor_price;
     public $reseller_price;
     public $retail_price;
+    public $image;
 
     public $productAttributes = [];
     public $selectedAttributes = [];
@@ -46,6 +50,7 @@ class ProductForm extends Component
         'variants.*.retail_price' => 'required|numeric|min:0',
         'newAttributeKey' => 'nullable|string|max:255',
         'newAttributeValues' => 'nullable|string',
+        'image' => 'nullable|image|max:2048',
     ];
 
     public function mount($productId = null)
@@ -61,6 +66,7 @@ class ProductForm extends Component
             $this->factory_price = $this->product->factory_price;
             $this->distributor_price = $this->product->distributor_price;
             $this->reseller_price = $this->product->reseller_price;
+            $this->image = null;
 
             // Extract unique attributes and their values from variants (rollback: only name and values as strings)
             $attributeMap = [];
@@ -139,17 +145,17 @@ class ProductForm extends Component
         $this->dispatch('attribute-changed', ['attributes' => $this->productAttributes]);
     }
 
-    public function updatedFactoryPrice()
-    {
-        // Calculate distributor price (25% markup)
-        $this->distributor_price = $this->factory_price * 1.25;
+    // public function updatedFactoryPrice()
+    // {
+    //     // Calculate distributor price (25% markup)
+    //     $this->distributor_price = $this->factory_price * 1.25;
 
-        // Calculate reseller price (25% markup from distributor)
-        $this->reseller_price = $this->distributor_price * 1.25;
+    //     // Calculate reseller price (25% markup from distributor)
+    //     $this->reseller_price = $this->distributor_price * 1.25;
 
-        // Calculate retail price (25% markup from reseller)
-        $this->retail_price = $this->reseller_price * 1.25;
-    }
+    //     // Calculate retail price (25% markup from reseller)
+    //     $this->retail_price = $this->reseller_price * 1.25;
+    // }
 
     public function addNewAttribute()
     {
@@ -289,6 +295,8 @@ class ProductForm extends Component
     {
         $this->validate($this->rules);
 
+        dd($this->name);
+
         // Create or update product
         $productData = [
             'name' => $this->name,
@@ -344,6 +352,12 @@ class ProductForm extends Component
                     'value' => $value,
                 ]);
             }
+        }
+
+        if ($this->image) {
+            $filename = $this->image->store('products', 'public');
+            $this->product->image = basename($filename);
+            $this->product->save();
         }
 
         $this->hasUnsavedChanges = false;

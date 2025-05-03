@@ -76,10 +76,10 @@
                             </div>
 
                             <div class="flex items-center justify-end mt-4">
-                                <x-button type="button" onclick="window.history.back()" class="bg-gray-600 hover:bg-gray-700 mr-3">
+                                <x-button type="button" onclick="window.history.back()" class="bg-gray-600 hover:bg-gray-700 mr-3 cursor-pointer">
                                     {{ __('common.actions.back') }}
                                 </x-button>
-                                <x-button>
+                                <x-button class="cursor-pointer">
                                     {{ __('common.actions.save') }}
                                 </x-button>
                             </div>
