@@ -21,7 +21,7 @@
     </header>
     @endif
 
-    <div x-data="handleSelect">
+    <div>
         <div class="overflow-x-auto">
             <table class="table-auto w-full">
                 <!-- Table header -->
