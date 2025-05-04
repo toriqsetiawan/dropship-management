@@ -293,9 +293,15 @@ class ProductForm extends Component
 
     public function save()
     {
+        // If variants is a JSON string, decode it
+        if (is_string($this->variants)) {
+            $this->variants = json_decode($this->variants, true);
+        }
+        \Log::info('Variants received:', ['variants' => $this->variants]);
+
         $this->validate($this->rules);
 
-        dd($this->name);
+        // dd($this->name); // (optional: remove or comment out)
 
         // Create or update product
         $productData = [
@@ -313,7 +319,9 @@ class ProductForm extends Component
         }
 
         // Handle variants
-        foreach ($this->variants as $variantData) {
+        foreach (
+            $this->variants as $variantData
+        ) {
             $variant = isset($variantData['id'])
                 ? ProductVariant::find($variantData['id'])
                 : new ProductVariant();
@@ -328,8 +336,10 @@ class ProductForm extends Component
             $variant->retail_price = $variantData['retail_price'];
             $variant->save();
 
-            // Sync attribute values
-            $variant->attributeValues()->sync($variantData['attributes']);
+            // Sync attribute values only if present
+            if (isset($variantData['attributes'])) {
+                $variant->attributeValues()->sync($variantData['attributes']);
+            }
         }
 
         // Delete removed variants

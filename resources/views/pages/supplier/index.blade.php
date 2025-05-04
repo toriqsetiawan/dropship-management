@@ -62,7 +62,7 @@
                                     itemName: '{{ $supplier->name }}',
                                     deleteRoute: '{{ route('supplier.destroy', $supplier->id) }}'
                                 })"
-                                class="text-red-500 hover:text-red-600">
+                                class="text-red-500 hover:text-red-600 cursor-pointer">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>

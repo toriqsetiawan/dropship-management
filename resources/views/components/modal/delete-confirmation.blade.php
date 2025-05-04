@@ -81,11 +81,11 @@
                 <form :action="deleteRoute" method="POST" class="inline">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="inline-flex w-full justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm">
+                    <button type="submit" class="inline-flex w-full justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm cursor-pointer">
                         {{ $deleteText ?? __('common.actions.delete') }}
                     </button>
                 </form>
-                <button @click="show = false" type="button" class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm">
+                <button @click="show = false" type="button" class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm cursor-pointer">
                     {{ $cancelText ?? __('common.actions.cancel') }}
                 </button>
             </div>

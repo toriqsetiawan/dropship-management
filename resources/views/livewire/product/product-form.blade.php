@@ -10,7 +10,7 @@
         </div>
     @endif
 
-    <form wire:submit="save" class="space-y-8">
+    <form class="space-y-8">
         <div class="space-y-8 pb-6 divide-y divide-gray-200 dark:divide-gray-700">
             <!-- Basic Information -->
             <div class="py-8">
@@ -242,14 +242,14 @@
                                 let backendVariants = JSON.parse(localStorage.getItem('productVariants') || '[]');
                                 this.variants = combos.map((combo, idx) => {
                                     let keyBase = combo.join('|');
-                                    let key = keyBase + '|' + idx; // idx ensures uniqueness
+                                    let key = keyBase + '|' + idx;
                                     let prev = backendVariants.find(v => v.key === keyBase);
                                     return {
                                         key,
                                         values: combo,
-                                        price: prev ? prev.retail_price : '',
+                                        sku: prev ? prev.sku : '',
                                         stock: prev ? prev.stock : '',
-                                        sku: prev ? prev.sku : ''
+                                        retail_price: prev ? prev.retail_price : ''
                                     };
                                 });
                             },
@@ -262,7 +262,7 @@
                                 this.generateVariants();
                             },
                             applyBulkPrice() {
-                                this.variants.forEach(v => v.price = this.bulkPrice);
+                                this.variants.forEach(v => v.retail_price = this.bulkPrice);
                             },
                             applyBulkStock() {
                                 this.variants.forEach(v => v.stock = this.bulkStock);
@@ -367,9 +367,6 @@
                             </div>
                         </div>
 
-                        <!-- Hidden input to send attributes to Livewire on save -->
-                        <input type="hidden" name="frontend_attributes" :value="JSON.stringify(attributes)" />
-
                         <!-- Variants Table (Alpine.js) -->
                         <template x-if="variants.length > 0">
                             <div class="mt-8">
@@ -428,7 +425,7 @@
                                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400" x-text="val"></td>
                                                     </template>
                                                     <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                                        <input type="number" min="0" x-model.number="variant.price" class="block w-full border-gray-300 dark:bg-gray-900 dark:text-gray-100 rounded-md h-10" placeholder="Rp" required />
+                                                        <input type="number" min="0" x-model.number="variant.retail_price" class="block w-full border-gray-300 dark:bg-gray-900 dark:text-gray-100 rounded-md h-10" placeholder="Rp" required />
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-4 text-sm">
                                                         <input type="number" min="0" x-model.number="variant.stock" class="block w-full border-gray-300 dark:bg-gray-900 dark:text-gray-100 rounded-md h-10" required />
@@ -443,20 +440,35 @@
                                 </div>
                             </div>
                         </template>
-                        <input type="hidden" name="frontend_variants" :value="JSON.stringify(variants)" />
+
+                        <!-- Place the button group here, after the variants table/template -->
+                        <div class="pt-5">
+                            <div class="flex justify-end">
+                                <x-button type="button" onclick="window.history.back()" class="bg-gray-600 hover:bg-gray-700 mr-3 cursor-pointer">
+                                    {{ __('common.actions.back') }}
+                                </x-button>
+                                <x-button
+                                    type="button"
+                                    class="cursor-pointer"
+                                    x-on:click="
+                                        const plainVariants = JSON.parse(JSON.stringify($data.variants ?? []));
+                                        const plainAttributes = JSON.parse(JSON.stringify($data.attributes ?? []));
+                                        console.log('Plain variants:', plainVariants);
+                                        console.log('Plain attributes:', plainAttributes);
+                                        Promise.all([
+                                            $wire.set('variants', plainVariants),
+                                            $wire.set('productAttributes', plainAttributes)
+                                        ]).then(() => {
+                                            $wire.save();
+                                        });
+                                    "
+                                >
+                                    {{ __('common.actions.save') }}
+                                </x-button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <div class="pt-5">
-            <div class="flex justify-end">
-                <x-button type="button" onclick="window.history.back()" class="bg-gray-600 hover:bg-gray-700 mr-3 cursor-pointer">
-                    {{ __('common.actions.back') }}
-                </x-button>
-                <x-button class="cursor-pointer">
-                    {{ __('common.actions.save') }}
-                </x-button>
             </div>
         </div>
     </form>
