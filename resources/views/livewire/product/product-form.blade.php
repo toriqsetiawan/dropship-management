@@ -1,3 +1,7 @@
+@php
+    $editing = isset($productId) && $productId;
+@endphp
+
 <div>
     @if ($errors->any())
         <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -154,10 +158,10 @@
 
                 <div class="mt-6">
                     <script>
-                    function attributeManager() {
+                    function attributeManager({ backendAttributes = [], backendVariants = [] } = {}) {
                         return {
-                            attributes: JSON.parse(localStorage.getItem('productAttributes') || '[]'),
-                            variants: JSON.parse(localStorage.getItem('productVariants') || '[]'),
+                            attributes: [],
+                            variants: [],
                             newAttributeKey: '',
                             newAttributeValues: '',
                             editIndex: null,
@@ -243,7 +247,8 @@
                                 this.variants = combos.map((combo, idx) => {
                                     let keyBase = combo.join('|');
                                     let key = keyBase + '|' + idx;
-                                    let prev = backendVariants.find(v => v.key === keyBase);
+                                    // Match by values array
+                                    let prev = backendVariants.find(v => v.values && v.values.join('|') === keyBase);
                                     return {
                                         key,
                                         values: combo,
@@ -260,6 +265,12 @@
                             },
                             init() {
                                 this.generateVariants();
+                                // Always sync backend data to localStorage on init
+                                localStorage.setItem('productAttributes', JSON.stringify(backendAttributes));
+                                localStorage.setItem('productVariants', JSON.stringify(backendVariants));
+
+                                this.attributes = backendAttributes;
+                                this.variants = backendVariants;
                             },
                             applyBulkPrice() {
                                 this.variants.forEach(v => v.retail_price = this.bulkPrice);
@@ -276,7 +287,7 @@
                     }
                     </script>
                     <!-- Attribute Management (Original Design, Alpine.js Logic) -->
-                    <div x-data="attributeManager()">
+                    <div x-data="attributeManager(JSON.parse(document.getElementById('product-form-data').textContent))">
                         <!-- Add New Attribute -->
                         <div class="mb-8 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                             <h4 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">
@@ -486,23 +497,9 @@
 </script>
 @endpush
 
-@php
-    $editing = isset($productId) && $productId;
-@endphp
-@if(!$editing)
-    <script>
-        // Clear old attributes from localStorage when opening the add product form
-        localStorage.removeItem('productAttributes');
-    </script>
-@endif
-
-@if($editing)
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var backendAttributes = @json($productAttributes);
-            var backendVariants = @json($variants);
-            localStorage.setItem('productAttributes', JSON.stringify(backendAttributes));
-            localStorage.setItem('productVariants', JSON.stringify(backendVariants));
-        });
-    </script>
-@endif
+<script type="application/json" id="product-form-data">
+    {!! json_encode([
+        'backendAttributes' => $editing ? $productAttributes : [],
+        'backendVariants' => $editing ? $variants : [],
+    ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!}
+</script>

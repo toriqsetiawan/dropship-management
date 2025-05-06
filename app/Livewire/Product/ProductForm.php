@@ -94,10 +94,15 @@ class ProductForm extends Component
                     }
                     $attributeSet[$value->attribute_id] = $value->id;
                     $valueStrings[] = $value->value;
-                    // Add to selected attributes if not already selected
                     if (!in_array($value->attribute_id, $this->selectedAttributes)) {
                         $this->selectedAttributes[] = $value->attribute_id;
                     }
+                }
+                // Build values array in the order of $attributeMap
+                $orderedValues = [];
+                foreach (array_keys($attributeMap) as $attrId) {
+                    $val = $variant->attributeValues->firstWhere('attribute_id', $attrId);
+                    $orderedValues[] = $val ? $val->value : '';
                 }
                 $this->variants[] = [
                     'id' => $variant->id,
@@ -105,7 +110,8 @@ class ProductForm extends Component
                     'sku' => $variant->sku,
                     'stock' => $variant->stock,
                     'retail_price' => $variant->retail_price,
-                    'key' => implode('|', $valueStrings), // Add key for frontend matching
+                    'key' => implode('|', $valueStrings),
+                    'values' => $orderedValues,
                 ];
             }
             $this->productAttributes = array_values($attributeMap);
@@ -293,15 +299,24 @@ class ProductForm extends Component
 
     public function save()
     {
-        // If variants is a JSON string, decode it
-        if (is_string($this->variants)) {
-            $this->variants = json_decode($this->variants, true);
-        }
-        \Log::info('Variants received:', ['variants' => $this->variants]);
-
         $this->validate($this->rules);
 
-        // dd($this->name); // (optional: remove or comment out)
+        // Build attribute/value ID map
+        $attributeValueIdMap = [];
+        $attributeIdMap = [];
+        foreach ($this->productAttributes as $attrData) {
+            $attribute = Attribute::firstOrCreate([
+                'name' => Str::title($attrData['name']),
+            ]);
+            $attributeIdMap[$attrData['name']] = $attribute->id;
+            foreach ($attrData['values'] as $value) {
+                $attrValue = AttributeValue::firstOrCreate([
+                    'attribute_id' => $attribute->id,
+                    'value' => Str::title($value),
+                ]);
+                $attributeValueIdMap[$attribute->id][Str::title($value)] = $attrValue->id;
+            }
+        }
 
         // Create or update product
         $productData = [
@@ -319,9 +334,7 @@ class ProductForm extends Component
         }
 
         // Handle variants
-        foreach (
-            $this->variants as $variantData
-        ) {
+        foreach ($this->variants as $variantData) {
             $variant = isset($variantData['id'])
                 ? ProductVariant::find($variantData['id'])
                 : new ProductVariant();
@@ -336,9 +349,24 @@ class ProductForm extends Component
             $variant->retail_price = $variantData['retail_price'];
             $variant->save();
 
-            // Sync attribute values only if present
-            if (isset($variantData['attributes'])) {
-                $variant->attributeValues()->sync($variantData['attributes']);
+            // Build attribute value IDs for this variant
+            $attributeValueIds = [];
+            if (isset($variantData['values'])) {
+                foreach ($this->productAttributes as $idx => $attrData) {
+                    $attrName = Str::title($attrData['name']);
+                    $attributeId = $attributeIdMap[$attrData['name']];
+                    $valueString = isset($variantData['values'][$idx]) ? Str::title($variantData['values'][$idx]) : null;
+                    if ($valueString && isset($attributeValueIdMap[$attributeId][$valueString])) {
+                        $attributeValueIds[] = $attributeValueIdMap[$attributeId][$valueString];
+                    }
+                }
+            }
+            if (!empty($attributeValueIds)) {
+                if (empty($variantData['id'])) {
+                    $variant->attributeValues()->attach($attributeValueIds);
+                } else {
+                    $variant->attributeValues()->syncWithoutDetaching($attributeValueIds);
+                }
             }
         }
 
@@ -348,20 +376,6 @@ class ProductForm extends Component
             ProductVariant::where('product_id', $this->product->id)
                 ->whereNotIn('id', $existingVariantIds)
                 ->delete();
-        }
-
-        // Save attributes and values to DB, linked to this product
-        foreach ($this->productAttributes as $attrData) {
-            $attribute = Attribute::create([
-                'product_id' => $this->product->id,
-                'name' => $attrData['name'],
-            ]);
-            foreach ($attrData['values'] as $value) {
-                AttributeValue::create([
-                    'attribute_id' => $attribute->id,
-                    'value' => $value,
-                ]);
-            }
         }
 
         if ($this->image) {
