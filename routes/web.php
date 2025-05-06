@@ -13,6 +13,7 @@ use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ProductController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,8 +29,7 @@ use App\Http\Controllers\UserController;
 Route::redirect('/', 'login');
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
+    // Supplier Routes
     Route::get('/supplier', [SupplierController::class, 'index'])->name('supplier');
     Route::get('/supplier/create', [SupplierController::class, 'create'])->name('supplier.create');
     Route::post('/supplier', [SupplierController::class, 'store'])->name('supplier.store');
@@ -46,8 +46,22 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
+    // Dashboard Routes
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])->name('analytics');
     Route::get('/dashboard/fintech', [DashboardController::class, 'fintech'])->name('fintech');
+
+    // Product Routes
+    Route::get('/products', App\Livewire\Product\ProductList::class)->name('products.index');
+    Route::get('/products/create', function () {
+        return view('pages.product.create');
+    })->name('products.create');
+    Route::get('/products/{product}/edit', function (App\Models\Product $product) {
+        return view('pages.product.edit', compact('product'));
+    })->name('products.edit');
+    Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+
+
     Route::get('/ecommerce/customers', [CustomerController::class, 'index'])->name('customers');
     Route::get('/ecommerce/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/ecommerce/invoices', [InvoiceController::class, 'index'])->name('invoices');
@@ -217,11 +231,5 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
 // Product routes
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
-    Route::get('/products', App\Livewire\Product\ProductList::class)->name('products.index');
-    Route::get('/products/create', function () {
-        return view('pages.product.create');
-    })->name('products.create');
-    Route::get('/products/{product}/edit', function (App\Models\Product $product) {
-        return view('pages.product.edit', compact('product'));
-    })->name('products.edit');
+
 });

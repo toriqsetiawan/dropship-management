@@ -1,5 +1,15 @@
 <div>
     <div class="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-9xl mx-auto">
+        @if (session('success'))
+            <div
+                x-data="{ show: true }"
+                x-show="show"
+                x-init="setTimeout(() => show = false, 3000)"
+                class="mb-4 p-4 px-8 py-4 bg-green-100 border border-green-400 text-green-700 rounded transition-all duration-500"
+            >
+                {{ session('success') }}
+            </div>
+        @endif
         <!-- Page header -->
         <div class="sm:flex sm:justify-between sm:items-center mb-8">
             <!-- Left: Title -->
@@ -83,10 +93,10 @@
                             </a>
                             <button
                                 type="button"
-                                wire:click="$dispatch('open-delete-modal', {
+                                x-on:click="$dispatch('open-delete-modal', {
                                     itemId: {{ $product->id }},
                                     itemName: '{{ $product->name }}',
-                                    deleteAction: 'deleteProduct'
+                                    deleteRoute: '{{ route('products.destroy', $product->id) }}'
                                 })"
                                 class="text-red-500 hover:text-red-600 cursor-pointer">
                                 <i class="fa-solid fa-trash"></i>
