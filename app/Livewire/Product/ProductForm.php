@@ -310,11 +310,13 @@ class ProductForm extends Component
             ]);
             $attributeIdMap[$attrData['name']] = $attribute->id;
             foreach ($attrData['values'] as $value) {
+                // If $value is an array, extract the 'value' key
+                $actualValue = is_array($value) ? ($value['value'] ?? '') : $value;
                 $attrValue = AttributeValue::firstOrCreate([
                     'attribute_id' => $attribute->id,
-                    'value' => Str::title($value),
+                    'value' => Str::title($actualValue),
                 ]);
-                $attributeValueIdMap[$attribute->id][Str::title($value)] = $attrValue->id;
+                $attributeValueIdMap[$attribute->id][Str::title($actualValue)] = $attrValue->id;
             }
         }
 
@@ -423,9 +425,15 @@ class ProductForm extends Component
     {
         // If retail_price is updated, update the SKU
         if (str_contains($key, 'retail_price')) {
-            $index = explode('.', $key)[1];
-            if (!isset($this->variants[$index]['sku']) || empty($this->variants[$index]['sku'])) {
-                $this->variants[$index]['sku'] = $this->generateSkuCode($this->variants[$index]);
+            $parts = explode('.', $key);
+            $index = $parts[1] ?? null;
+
+            // Ensure the variant exists and is an array
+            if ($index !== null && isset($this->variants[$index]) && is_array($this->variants[$index])) {
+                // Only generate SKU if it's not set or empty
+                if (empty($this->variants[$index]['sku'])) {
+                    $this->variants[$index]['sku'] = $this->generateSkuCode($this->variants[$index]);
+                }
             }
         }
     }
