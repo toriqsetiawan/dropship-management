@@ -10,6 +10,8 @@
         itemId: null,
         itemName: '',
         deleteRoute: '',
+        isBulk: false,
+        ids: [],
         init() {
             this.$watch('show', value => {
                 if (value) {
@@ -24,6 +26,8 @@
         itemId = $event.detail.itemId;
         itemName = $event.detail.itemName;
         deleteRoute = $event.detail.deleteRoute;
+        isBulk = $event.detail.isBulk || false;
+        ids = $event.detail.itemIds || [];
         show = true;
     "
     @keydown.escape.window="show = false"
@@ -70,9 +74,16 @@
                 <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
                     <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100">{{ $title ?? __('common.messages.delete_title') }}</h3>
                     <div class="mt-2">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">
-                            {{ $confirmText ?? __('common.messages.delete_confirm') }} <span x-text="itemName" class="font-medium"></span>? {{ $slot }}
-                        </p>
+                        <template x-if="isBulk">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                {{ __('common.transaction.delete_warning') }} <span x-text="itemName" class="font-medium"></span>? {{ $slot }}
+                            </p>
+                        </template>
+                        <template x-if="!isBulk">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                {{ $slot }} <span x-text="itemName" class="font-medium"></span>?
+                            </p>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -80,6 +91,9 @@
             <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                 <form :action="deleteRoute" method="POST" class="inline">
                     @csrf
+                    <template x-if="isBulk">
+                        <input type="hidden" name="ids" :value="JSON.stringify(ids)">
+                    </template>
                     @method('DELETE')
                     <button type="submit" class="inline-flex w-full justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm cursor-pointer">
                         {{ $deleteText ?? __('common.actions.delete') }}

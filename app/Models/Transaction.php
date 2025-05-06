@@ -11,9 +11,14 @@ class Transaction extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'transaction_code',
+        'reseller_id',
+        'shipping_pdf_path',
+        'shipping_number',
         'user_id',
         'tax',
         'total_paid',
+        'total_price',
         'status',
         'description'
     ];
@@ -21,6 +26,7 @@ class Transaction extends Model
     protected $casts = [
         'tax' => 'decimal:2',
         'total_paid' => 'decimal:2',
+        'total_price' => 'decimal:2',
         'status' => 'integer'
     ];
 

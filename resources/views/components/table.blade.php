@@ -3,7 +3,8 @@
     'rows' => [],
     'meta' => null,
     'title' => '',
-    'description' => ''
+    'description' => '',
+    'headerSlot' => null
 ])
 
 <div class="bg-white dark:bg-gray-800 rounded-xl relative">
@@ -27,13 +28,17 @@
                 <!-- Table header -->
                 <thead class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/20 border-t border-b border-gray-200 dark:border-gray-700">
                     <tr>
-                        @foreach($headers as $header)
-                        <th class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                            <div class="font-semibold {{ is_array($header) ? ($header['align'] === 'right' ? 'text-right' : 'text-left') : 'text-left' }}">
-                                {{ is_array($header) ? $header['text'] : $header }}
-                            </div>
-                        </th>
-                        @endforeach
+                        @if (isset($headerSlot))
+                            {{ $headerSlot }}
+                        @else
+                            @foreach($headers as $header)
+                            <th class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
+                                <div class="font-semibold {{ is_array($header) ? ($header['align'] === 'right' ? 'text-right' : 'text-left') : 'text-left' }}">
+                                    {{ is_array($header) ? $header['text'] : $header }}
+                                </div>
+                            </th>
+                            @endforeach
+                        @endif
                     </tr>
                 </thead>
                 <!-- Table body -->

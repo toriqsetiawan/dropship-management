@@ -115,4 +115,16 @@ class User extends Authenticatable
     {
         return asset('images/user-avatar-32.png');
     }
+
+    /**
+     * Check if the user has a given role (by name).
+     *
+     * @param string|array $roles
+     * @return bool
+     */
+    public function hasRole($roles)
+    {
+        $roles = (array) $roles;
+        return $this->role && in_array($this->role->name, $roles);
+    }
 }
