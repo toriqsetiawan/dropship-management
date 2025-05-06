@@ -170,6 +170,7 @@
                             bulkPrice: '',
                             bulkStock: '',
                             bulkSku: '',
+                            bulkSkuIsPrefix: true,
                             attributeError: '',
                             addAttribute() {
                                 if (this.attributes.length >= 2) {
@@ -196,7 +197,7 @@
                             startEdit(index) {
                                 this.editIndex = index;
                                 this.editName = this.attributes[index].name;
-                                this.editValues = this.attributes[index].values.join(', ');
+                                this.editValues = this.attributes[index].values.map(v => typeof v === 'object' ? v.value : v).join(', ');
                             },
                             updateAttribute() {
                                 if (this.editIndex === null) return;
@@ -280,7 +281,22 @@
                             },
                             applyBulkSku() {
                                 this.variants.forEach(v => {
-                                    v.sku = (this.bulkSku ? this.bulkSku + '-' : '') + v.values.map(val => String(val).toLowerCase().replace(/\s+/g, '-')).join('-');
+                                    if (this.bulkSkuIsPrefix) {
+                                        v.sku = (this.bulkSku ? this.bulkSku + '-' : '') + v.values.map(val => String(val).toLowerCase().replace(/\s+/g, '-')).join('-');
+                                    } else {
+                                        v.sku = this.bulkSku;
+                                    }
+                                });
+                            },
+                            save() {
+                                const plainVariants = JSON.parse(JSON.stringify(this.variants ?? []));
+                                const plainAttributes = JSON.parse(JSON.stringify(this.attributes ?? []));
+
+                                Promise.all([
+                                    $set('variants', plainVariants),
+                                    $set('productAttributes', plainAttributes)
+                                ]).then(() => {
+                                    $call('save');
                                 });
                             }
                         }
@@ -411,8 +427,12 @@
                                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                             {{ __('product.fields.bulk_sku_prefix') }}
                                         </label>
-                                        <div class="mt-1 relative rounded-md shadow-sm flex">
+                                        <div class="mt-1 relative rounded-md shadow-sm flex items-center">
                                             <input type="text" x-model="bulkSku" class="block w-full border-gray-300 dark:bg-gray-900 dark:text-gray-100 rounded-md h-10" />
+                                            <label class="ml-2 flex items-center space-x-1 text-xs">
+                                                <input type="checkbox" x-model="bulkSkuIsPrefix" class="form-checkbox" />
+                                                <span>Prefix</span>
+                                            </label>
                                             <x-button type="button" @click="applyBulkSku" class="ml-2 bg-black text-white">{{ __('common.actions.apply') }}</x-button>
                                         </div>
                                     </div>
@@ -461,18 +481,7 @@
                                 <x-button
                                     type="button"
                                     class="cursor-pointer"
-                                    x-on:click="
-                                        const plainVariants = JSON.parse(JSON.stringify($data.variants ?? []));
-                                        const plainAttributes = JSON.parse(JSON.stringify($data.attributes ?? []));
-                                        console.log('Plain variants:', plainVariants);
-                                        console.log('Plain attributes:', plainAttributes);
-                                        Promise.all([
-                                            $wire.set('variants', plainVariants),
-                                            $wire.set('productAttributes', plainAttributes)
-                                        ]).then(() => {
-                                            $wire.save();
-                                        });
-                                    "
+                                    @click="save()"
                                 >
                                     {{ __('common.actions.save') }}
                                 </x-button>

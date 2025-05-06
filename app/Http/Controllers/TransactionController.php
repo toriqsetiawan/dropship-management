@@ -44,6 +44,8 @@ class TransactionController extends Controller
         // Use Spatie PdfToText to extract text
         $text = \Spatie\PdfToText\Pdf::getText(storage_path('app/' . $path));
 
+        // Load all product variants with their product and attribute values
+        $variants = \App\Models\ProductVariant::with('product', 'attributeValues.attribute')->get();
         $created = 0;
         // If you want to handle multi-page PDFs, you can split by form feed (\f)
         $pages = preg_split('/\f/', $text);
@@ -106,6 +108,44 @@ class TransactionController extends Controller
             // Try: Just Qty label and value
             else if (preg_match('/Qty\s*(\d+)/i', $text, $m)) {
                 $qty = trim($m[1]);
+            }
+
+            // --- Match SKU from PDF with database ---
+            $matchedVariant = null;
+            foreach ($variants as $variant) {
+                if ($sku && strcasecmp($sku, $variant->sku) === 0) {
+                    $matchedVariant = $variant;
+                    break;
+                }
+            }
+            if ($matchedVariant) {
+                $productName = $matchedVariant->product->name ?? $productName;
+                $sku = $matchedVariant->sku;
+            }
+
+            // --- Match Variant String (Color/Size) ---
+            $color = $size = null;
+            if ($variation && strpos($variation, ',') !== false) {
+                [$color, $size] = array_map('trim', explode(',', $variation, 2));
+            }
+            $variantColor = $variantSize = null;
+            if ($matchedVariant) {
+                foreach ($matchedVariant->attributeValues as $attrValue) {
+                    if ($color && stripos($color, $attrValue->value) !== false) {
+                        $variantColor = $attrValue->value;
+                    }
+                    if ($size && stripos($size, $attrValue->value) !== false) {
+                        $variantSize = $attrValue->value;
+                    }
+                }
+            }
+            // Optionally, you can update $variation to be more accurate:
+            if ($variantColor && $variantSize) {
+                $variation = $variantColor . ', ' . $variantSize;
+            } elseif ($variantColor) {
+                $variation = $variantColor;
+            } elseif ($variantSize) {
+                $variation = $variantSize;
             }
 
             // Compose description
