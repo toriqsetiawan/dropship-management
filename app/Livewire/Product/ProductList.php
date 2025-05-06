@@ -28,6 +28,8 @@ class ProductList extends Component
     {
         return view('livewire.product.product-list', [
             'products' => Product::query()
+                ->withCount('variants')
+                ->with('variants')
                 ->when($this->search, function ($query) {
                     $query->where('name', 'like', '%' . $this->search . '%');
                 })

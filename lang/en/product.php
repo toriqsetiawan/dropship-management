@@ -11,6 +11,7 @@ return [
     'variant_count' => 'variants',
     'all_products' => 'All Products',
     'discount' => 'DISCOUNT',
+    'variant_details' => 'Variant Details',
 
     'sections' => [
         'basic_info' => 'Basic Information',

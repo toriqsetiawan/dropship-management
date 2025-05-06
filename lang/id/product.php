@@ -11,6 +11,7 @@ return [
     'variant_count' => 'varian',
     'all_products' => 'Semua Produk',
     'discount' => 'DISKON',
+    'variant_details' => 'Detail Varian',
 
     'sections' => [
         'basic_info' => 'Informasi Dasar',

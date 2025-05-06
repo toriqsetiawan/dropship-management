@@ -67,8 +67,38 @@
                         <div class="font-medium text-gray-800 dark:text-gray-100">{{ $product->name }}</div>
                     </td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                        <div class="text-gray-800 dark:text-gray-100">
-                            {{ $product->variants_count ?? 0 }} {{ __('product.variant_count') }}
+                        <div x-data="{ open: false }">
+                            <span
+                                @click="open = true"
+                                class="text-gray-800 dark:text-gray-100 cursor-pointer underline decoration-dotted"
+                            >
+                                {{ $product->variants_count ?? 0 }} {{ __('product.variant_count') }}
+                            </span>
+                            <!-- Modal -->
+                            <div
+                                x-show="open"
+                                x-transition.opacity
+                                class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+                                style="display: none;"
+                            >
+                                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+                                    <button @click="open = false" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl">&times;</button>
+                                    <h3 class="text-lg font-semibold mb-4">{{ __('product.variant_details') }}</h3>
+                                    @if($product->variants_count)
+                                        <ul>
+                                            @foreach($product->variants as $variant)
+                                                <li class="mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
+                                                    <strong>SKU:</strong> {{ $variant->sku }}<br>
+                                                    <strong>Stock:</strong> {{ $variant->stock }}<br>
+                                                    <strong>Price:</strong> {{ number_format($variant->retail_price) }}
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    @else
+                                        <span class="text-gray-500">{{ __('product.no_variants') }}</span>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
                     </td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
