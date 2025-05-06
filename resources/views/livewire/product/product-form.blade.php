@@ -287,17 +287,6 @@
                                         v.sku = this.bulkSku;
                                     }
                                 });
-                            },
-                            save() {
-                                const plainVariants = JSON.parse(JSON.stringify(this.variants ?? []));
-                                const plainAttributes = JSON.parse(JSON.stringify(this.attributes ?? []));
-
-                                Promise.all([
-                                    $set('variants', plainVariants),
-                                    $set('productAttributes', plainAttributes)
-                                ]).then(() => {
-                                    $call('save');
-                                });
                             }
                         }
                     }
@@ -481,7 +470,18 @@
                                 <x-button
                                     type="button"
                                     class="cursor-pointer"
-                                    @click="save()"
+                                    x-on:click="
+                                        const plainVariants = JSON.parse(JSON.stringify($data.variants ?? []));
+                                        const plainAttributes = JSON.parse(JSON.stringify($data.attributes ?? []));
+                                        console.log('Plain variants:', plainVariants);
+                                        console.log('Plain attributes:', plainAttributes);
+                                        Promise.all([
+                                            $wire.set('variants', plainVariants),
+                                            $wire.set('productAttributes', plainAttributes)
+                                        ]).then(() => {
+                                            $wire.save();
+                                        });
+                                    "
                                 >
                                     {{ __('common.actions.save') }}
                                 </x-button>
