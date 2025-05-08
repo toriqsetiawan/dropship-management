@@ -123,7 +123,7 @@
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full p-6 relative">
                     <button @click="open = false"
                         class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl cursor-pointer">&times;</button>
-                    @include('transactions.partials.upload-form')
+                    @include('pages.transactions.partials.upload-form')
                 </div>
             </div>
 

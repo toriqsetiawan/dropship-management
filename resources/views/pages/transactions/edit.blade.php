@@ -2,59 +2,14 @@
     <script>
     function transactionItems() {
         return {
-            items: [],
-            init() {
-                this.$nextTick(() => {
-                    this.items.forEach((_, index) => {
-                        this.initSelect2(index);
-                    });
-                });
-            },
-            initSelect2(index) {
-                const select = document.querySelector(`#variant-select-${index}`);
-                if (select && !$(select).data('select2')) {
-                    $(select).select2({
-                        width: '100%',
-                        placeholder: '{{ __('common.select_product') }}',
-                        templateResult: function(data) {
-                            if (!data.id) return data.text;
-                            const sku = $(data.element).data('sku') || '';
-                            const name = $(data.element).data('name') || '';
-                            const attributes = data.text.split(' - ')[1] || '';
-                            return $(
-                                `<div><span class='font-medium'>${sku}</span> <span class='text-gray-400'>${name}</span><div class='text-sm text-gray-500'>${attributes}</div></div>`
-                            );
-                        },
-                        templateSelection: function(data) {
-                            if (!data.id) return data.text;
-                            const sku = $(data.element).data('sku') || '';
-                            const name = $(data.element).data('name') || '';
-                            const attributes = data.text.split(' - ')[1] || '';
-                            return $(
-                                `<div><span class='font-medium'>${sku}</span> <span class='text-gray-400'>${name}</span><span class='text-gray-500 ml-2'>${attributes}</span></div>`
-                            );
-                        },
-                        allowClear: false
-                    }).on('select2:select select2:unselect', () => {
-                        this.refreshAllSelect2();
-                    });
-                }
-            },
-            refreshAllSelect2() {
-                this.items.forEach((item, idx) => {
-                    const select = document.querySelector(`#variant-select-${idx}`);
-                    if (select) {
-                        $(select).find('option').each((_, opt) => {
-                            const val = opt.value;
-                            // Disable if selected in another item
-                            const isSelectedElsewhere = this.items.some((it, i) => i !== idx && it.variant_id == val);
-                            opt.disabled = isSelectedElsewhere;
-                        });
-                        // Refresh Select2 to reflect disabled state
-                        $(select).trigger('change.select2');
-                    }
-                });
-            },
+            items: @json($transaction->items->map(function($item) {
+                return [
+                    'variant_id' => (string) $item->variant_id,
+                    'quantity' => $item->quantity,
+                    'search' => $item->variant ? ($item->variant->sku . ' - ' . $item->variant->product->name . ($item->variant->attributeValues->count() ? ' (' . $item->variant->attributeValues->pluck('value')->join(', ') . ')' : '')) : '',
+                    'image_url' => $item->variant && $item->variant->product ? $item->variant->product->image_url : '',
+                ];
+            })),
             addItem() {
                 const index = this.items.length;
                 this.items.push({ variant_id: '', quantity: 1, search: '' });
@@ -63,7 +18,6 @@
                 this.items.splice(index, 1);
             },
             getVariantOptions(index) {
-                // Return all variants not already selected in other items
                 const selectedIds = this.items.filter((it, idx) => idx !== index).map(it => it.variant_id);
                 let options = [];
                 this.products.forEach(product => {
@@ -156,28 +110,67 @@
             <!-- Page header -->
             <div class="mb-8">
                 <h1 class="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">
-                    {{ __('common.transaction.add_manual') }}
+                    {{ __('common.form.edit_title', ['item' => __('common.transaction.title')]) }}
                 </h1>
             </div>
 
             <!-- Form -->
-            <form action="{{ route('transactions.store') }}" method="POST" class="space-y-6">
+            <form action="{{ route('transactions.update', $transaction) }}" method="POST" class="space-y-6">
                 @csrf
+                @method('PUT')
 
                 <!-- Reseller Selection (for distributor/superadmin) -->
-                @if($isDistributorOrSuperadmin)
-                <div>
-                    <label class="block text-sm font-medium mb-1" for="user_id">
+                @if(is_distributor_or_admin(auth()->user()))
+                <div x-data="{
+                    open: false,
+                    search: '{{ old('user_id') ? ($resellers[collect($resellers)->firstWhere('id', old('user_id'))['name'] ?? '') : ($transaction->user->name ?? '') }}',
+                    selected: {{ old('user_id') ? old('user_id') : $transaction->user_id }},
+                    resellers: @js($resellers),
+                    get filtered() {
+                        if (!this.search) return this.resellers;
+                        return this.resellers.filter(r =>
+                            r.name.toLowerCase().includes(this.search.toLowerCase()) ||
+                            r.email.toLowerCase().includes(this.search.toLowerCase())
+                        );
+                    },
+                    select(reseller) {
+                        this.selected = reseller.id;
+                        this.search = reseller.name;
+                        this.open = false;
+                    },
+                    selectedName() {
+                        const found = this.resellers.find(r => r.id == this.selected);
+                        return found ? found.name : '';
+                    }
+                }" class="relative">
+                    <label class="block text-sm font-medium mb-1" for="user_id_search">
                         {{ __('common.select_reseller') }} <span class="text-red-500">*</span>
                     </label>
-                    <select id="user_id" name="user_id" class="form-select w-full" required>
-                        <option value="">{{ __('common.select_reseller') }}</option>
-                        @foreach($resellers as $reseller)
-                        <option value="{{ $reseller->id }}" {{ old('user_id') == $reseller->id ? 'selected' : '' }}>
-                            {{ $reseller->name }}
-                        </option>
-                        @endforeach
-                    </select>
+                    <input
+                        id="user_id_search"
+                        type="text"
+                        class="form-input w-full cursor-pointer"
+                        placeholder="{{ __('common.select_reseller') }}"
+                        x-model="search"
+                        @focus="setTimeout(() => open = true, 50)"
+                        @click="setTimeout(() => open = true, 50)"
+                        :value="selectedName()"
+                        autocomplete="off"
+                        required
+                    />
+                    <input type="hidden" name="user_id" :value="selected">
+                    <div x-show="open" @click.away="open = false" class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        <template x-for="reseller in filtered" :key="reseller.id">
+                            <div class="px-4 py-2 cursor-pointer hover:bg-indigo-100 flex items-center gap-3" @click="select(reseller)">
+                                <img :src="reseller.profile_photo_url" alt="" class="w-8 h-8 rounded-full object-cover">
+                                <div class="flex flex-col">
+                                    <span x-text="reseller.name" class="font-medium"></span>
+                                    <span x-text="reseller.email" class="text-sm text-gray-500"></span>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="filtered.length === 0" class="px-4 py-2 text-gray-400 text-sm">No results</div>
+                    </div>
                     @error('user_id')
                     <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
                     @enderror
@@ -189,7 +182,7 @@
                     <label class="block text-sm font-medium mb-1" for="shipping_number">
                         {{ __('common.transaction.shipping_number') }} <span class="text-red-500">*</span>
                     </label>
-                    <input id="shipping_number" name="shipping_number" class="form-input w-full" type="text" value="{{ old('shipping_number') }}" required />
+                    <input id="shipping_number" name="shipping_number" class="form-input w-full" type="text" value="{{ old('shipping_number', $transaction->shipping_number) }}" required />
                     @error('shipping_number')
                     <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
                     @enderror
@@ -200,14 +193,14 @@
                     <label class="block text-sm font-medium mb-1" for="description">
                         {{ __('common.transaction.description') }} <span class="text-red-500">*</span>
                     </label>
-                    <textarea id="description" name="description" class="form-textarea w-full" rows="4" required>{{ old('description') }}</textarea>
+                    <textarea id="description" name="description" class="form-textarea w-full" rows="4" required>{{ old('description', $transaction->description) }}</textarea>
                     @error('description')
                     <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
                     @enderror
                 </div>
 
                 <!-- Items -->
-                <div x-data="transactionItems()" x-init="init()">
+                <div x-data="transactionItems()">
                     <label class="block text-sm font-medium mb-1">
                         {{ __('common.transaction.items') }} <span class="text-red-500">*</span>
                     </label>
@@ -224,7 +217,6 @@
                                         x-model="item.search"
                                         @focus="dropdownOpen = true"
                                         @input="dropdownOpen = true"
-                                        readonly="false"
                                         :readonly="!!item.variant_id"
                                     />
                                     <button type="button" x-show="item.variant_id" @click.prevent.stop="clearVariant(index)" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">

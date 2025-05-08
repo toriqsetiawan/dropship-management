@@ -243,4 +243,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/transactions/upload-pdf', [TransactionController::class, 'upload'])->name('shipping.upload.post');
     Route::delete('/transactions/bulk-destroy', [TransactionController::class, 'bulkDestroy'])->name('transactions.bulk-destroy');
     Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
+    Route::get('/transactions/{transaction}/edit', [TransactionController::class, 'edit'])->name('transactions.edit');
+    Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
 });

@@ -1,18 +1,58 @@
-<form method="POST" action="{{ route('shipping.upload.post') }}" enctype="multipart/form-data" x-data="{ resellerSelected: '{{ old('selectedReseller') ?? '' }}' }">
+<form method="POST" action="{{ route('shipping.upload.post') }}" enctype="multipart/form-data">
     @csrf
-    @if($isDistributorOrSuperadmin)
-        <div class="mb-6 w-full flex flex-col items-center">
-            <label class="block mb-2 font-medium text-gray-700 dark:text-gray-200">{{ __('common.select_reseller') }}</label>
-            <select name="selectedReseller"
-                    x-model="resellerSelected"
-                    class="form-select w-full max-w-xs rounded-lg border-gray-300 focus:ring-violet-500 focus:border-violet-500"
-                    required>
-                <option value="">-- {{ __('common.select_reseller') }} --</option>
-                @foreach($resellers as $reseller)
-                    <option value="{{ $reseller->id }}">{{ $reseller->name }}</option>
-                @endforeach
-            </select>
-            @error('selectedReseller') <span class="text-red-600 text-sm mt-2">{{ $message }}</span> @enderror
+    @if(is_distributor_or_admin(auth()->user()))
+        <div
+            x-data="{
+                open: false,
+                search: '',
+                selected: {{ old('selectedReseller') ? old('selectedReseller') : 'null' }},
+                resellers: @js($resellers),
+                get filtered() {
+                    if (!this.search) return this.resellers;
+                    return this.resellers.filter(r =>
+                        r.name.toLowerCase().includes(this.search.toLowerCase()) ||
+                        r.email.toLowerCase().includes(this.search.toLowerCase())
+                    );
+                },
+                select(reseller) {
+                    this.selected = reseller.id;
+                    this.search = reseller.name;
+                    this.open = false;
+                }
+            }"
+            x-init="if (selected && resellers.length) { const found = resellers.find(r => r.id == selected); if (found) search = found.name; }"
+            class="relative mb-6"
+        >
+            <label class="block text-sm font-medium mb-1" for="user_id_search">
+                {{ __('common.select_reseller') }} <span class="text-red-500">*</span>
+            </label>
+            <input
+                id="user_id_search"
+                type="text"
+                class="form-input w-full cursor-pointer"
+                placeholder="{{ __('common.select_reseller') }}"
+                x-model="search"
+                @focus="setTimeout(() => open = true, 50)"
+                @click="setTimeout(() => open = true, 50)"
+                autocomplete="off"
+                required
+            />
+            <input type="hidden" name="selectedReseller" :value="selected">
+            <div x-show="open" @click.away="open = false" class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                <template x-for="reseller in filtered" :key="reseller.id">
+                    <div class="px-4 py-2 cursor-pointer hover:bg-indigo-100 flex items-center gap-3" @click="select(reseller)">
+                        <img :src="reseller.profile_photo_url" alt="" class="w-8 h-8 rounded-full object-cover">
+                        <div class="flex flex-col">
+                            <span x-text="reseller.name" class="font-medium"></span>
+                            <span x-text="reseller.email" class="text-sm text-gray-500"></span>
+                        </div>
+                    </div>
+                </template>
+                <div x-show="filtered.length === 0" class="px-4 py-2 text-gray-400 text-sm">No results</div>
+            </div>
+            @error('selectedReseller')
+            <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
+            @enderror
         </div>
     @endif
     <div class="mb-4">

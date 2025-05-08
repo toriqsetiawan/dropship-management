@@ -55,4 +55,5 @@ return [
     'transaction.items' => 'Items',
     'select_product' => 'Select Product',
     'add_item' => 'Add Item',
+    'pages' => 'Pages',
 ];

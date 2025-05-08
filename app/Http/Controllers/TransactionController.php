@@ -9,32 +9,47 @@ use App\Models\Reseller;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use mishagp\OCRmyPDF\OCRmyPDF;
+use App\Models\User;
+use App\Helpers\RoleHelper;
 
 class TransactionController extends Controller
 {
     public function index()
     {
         $user = Auth::user();
-        $isDistributorOrSuperadmin = $user->hasRole(['distributor', 'superadmin']);
-        $resellers = $isDistributorOrSuperadmin ? Reseller::all() : [];
-        $transactions = Transaction::with('user')->orderByDesc('created_at')->paginate(15);
-        return view('transactions.index', compact('transactions', 'isDistributorOrSuperadmin', 'resellers'));
+        $resellers = is_distributor_or_admin(auth()->user())
+            ? User::whereHas('role', function($query) {
+                $query->where('name', 'reseller');
+            })->get()
+            : [];
+        $transactions = Transaction::with('user')
+            ->orderByDesc('created_at')
+            ->paginate(15);
+        return view('pages.transactions.index', compact('transactions', 'resellers'));
     }
 
     public function create()
     {
-        $user = Auth::user();
-        $isDistributorOrSuperadmin = $user->hasRole(['distributor', 'superadmin']);
-        $resellers = $isDistributorOrSuperadmin ? Reseller::all() : [];
-        $products = Product::with('variants.attributeValues.attribute')->get();
-
-        return view('transactions.create', compact('isDistributorOrSuperadmin', 'resellers', 'products'));
+        $resellers = User::whereHas('role', function($query) {
+            $query->where('name', 'reseller');
+            if (is_distributor(auth()->user())) {
+                $query->where('parent_id', auth()->user()->id);
+            }
+        })->get()->map(function($reseller) {
+            return [
+                'id' => $reseller->id,
+                'name' => $reseller->name,
+                'email' => $reseller->email,
+                'profile_photo_url' => str_replace('\\', '/', $reseller->profile_photo_url)
+            ];
+        });
+        $products = Product::with('variants.attributeValues')->get();
+        return view('pages.transactions.create', compact('resellers', 'products'));
     }
 
     public function store(Request $request)
     {
         $user = Auth::user();
-        $isDistributorOrSuperadmin = $user->hasRole(['distributor', 'superadmin']);
 
         $rules = [
             'shipping_number' => 'required|string|max:255',
@@ -44,7 +59,7 @@ class TransactionController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
         ];
 
-        if ($isDistributorOrSuperadmin) {
+        if (is_distributor_or_admin($user)) {
             $rules['user_id'] = 'required|exists:users,id';
         }
 
@@ -52,7 +67,9 @@ class TransactionController extends Controller
 
         $transaction = Transaction::create([
             'transaction_code' => 'TRX-' . strtoupper(uniqid()),
-            'user_id' => $isDistributorOrSuperadmin ? $request->user_id : $user->id,
+            'user_id' => !is_distributor_or_admin($user)
+                ? $request->user_id
+                : $user->id,
             'shipping_number' => $request->shipping_number,
             'total_paid' => 0,
             'total_price' => 0,
@@ -91,12 +108,11 @@ class TransactionController extends Controller
     public function upload(Request $request)
     {
         $user = Auth::user();
-        $isDistributorOrSuperadmin = $user->hasRole(['distributor', 'superadmin']);
 
         $rules = [
             'shippingPdf' => 'required|file|mimes:pdf',
         ];
-        if ($isDistributorOrSuperadmin) {
+        if (is_distributor_or_admin($user)) {
             $rules['selectedReseller'] = 'required|exists:resellers,id';
         }
 
@@ -245,7 +261,9 @@ class TransactionController extends Controller
 
             Transaction::create([
                 'transaction_code' => 'TRX-' . strtoupper(uniqid()),
-                'user_id' => $isDistributorOrSuperadmin ? $request->selectedReseller : $user->id,
+                'user_id' => !is_distributor_or_admin($user)
+                    ? $request->selectedReseller
+                    : $user->id,
                 'shipping_pdf_path' => $path,
                 'shipping_number' => $shippingNumber,
                 'total_paid' => 0,
@@ -280,5 +298,64 @@ class TransactionController extends Controller
             return back()->with('success', __('common.transaction.deleted_successfully'));
         }
         return back()->with('error', __('No transactions selected.'));
+    }
+
+    public function edit(Transaction $transaction)
+    {
+        $resellers = User::whereHas('role', function($query) {
+            $query->where('name', 'reseller');
+        })->get()->map(function($reseller) {
+            return [
+                'id' => $reseller->id,
+                'name' => $reseller->name,
+                'email' => $reseller->email,
+                'profile_photo_url' => str_replace('\\', '/', $reseller->profile_photo_url)
+            ];
+        });
+        $products = Product::with('variants.attributeValues')->get();
+        $transaction->load('items.variant');
+        return view('pages.transactions.edit', compact('transaction', 'resellers', 'products'));
+    }
+
+    public function update(Request $request, Transaction $transaction)
+    {
+        $user = Auth::user();
+        $rules = [
+            'shipping_number' => 'required|string|max:255',
+            'description' => 'required|string',
+            'items' => 'required|array|min:1',
+            'items.*.variant_id' => 'required|exists:product_variants,id',
+            'items.*.quantity' => 'required|integer|min:1',
+        ];
+        if (is_distributor_or_admin($user)) {
+            $rules['user_id'] = 'required|exists:users,id';
+        }
+        $validated = $request->validate($rules);
+        $transaction->update([
+            'user_id' => is_distributor_or_admin($user) ? $request->user_id : $transaction->user_id,
+            'shipping_number' => $request->shipping_number,
+            'description' => $request->description,
+        ]);
+        // Remove old items
+        $transaction->items()->delete();
+        // Add new items
+        foreach ($request->items as $item) {
+            $variant = ProductVariant::findOrFail($item['variant_id']);
+            $transaction->items()->create([
+                'variant_id' => $item['variant_id'],
+                'quantity' => $item['quantity'],
+                'factory_price' => $variant->factory_price,
+                'distributor_price' => $variant->distributor_price,
+                'reseller_price' => $variant->reseller_price,
+                'retail_price' => $variant->retail_price,
+            ]);
+        }
+        // Recalculate total price
+        $totalPrice = $transaction->items->sum(function ($item) {
+            return $item->quantity * $item->retail_price;
+        });
+        $transaction->update(['total_price' => $totalPrice]);
+        return redirect()->route('transactions.index')
+            ->with('success', __('common.form.edit_title', ['item' => __('common.transaction.title')]));
     }
 }

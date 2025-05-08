@@ -55,4 +55,5 @@ return [
     'transaction.items' => 'Item',
     'select_product' => 'Pilih Produk',
     'add_item' => 'Tambah Item',
+    'pages' => 'Halaman',
 ];
