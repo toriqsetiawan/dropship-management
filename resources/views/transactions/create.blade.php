@@ -73,7 +73,9 @@
                                 id: variant.id,
                                 sku: variant.sku,
                                 name: product.name,
-                                attributes: (variant.attributeValues || []).map(a => a.value).join(', ')
+                                attributes: (variant.attributeValues || []).map(a => a.value).join(', '),
+                                image_url: product.image_url,
+                                product_id: product.id
                             });
                         }
                     });
@@ -91,10 +93,12 @@
                 this.items[index].variant_id = String(option.id);
                 this.items[index].search = option.sku + ' - ' + option.name + (option.attributes ? ' (' + option.attributes + ')' : '');
                 this.items[index].dropdownOpen = false;
+                this.items[index].image_url = option.image_url;
             },
             clearVariant(index) {
                 this.items[index].variant_id = '';
                 this.items[index].search = '';
+                this.items[index].image_url = '';
             },
             products: @json($products),
         }
@@ -211,7 +215,8 @@
                     <template x-for="(item, index) in items" :key="index">
                         <div class="cart-item-row" x-data="{ dropdownOpen: false }" @click.away="dropdownOpen = false">
                             <div class="flex-1">
-                                <div class="relative">
+                                <div class="relative flex items-center gap-2">
+                                    <img :src="item.image_url" alt="" class="w-10 h-10 object-cover rounded border border-gray-200 bg-white" x-show="item.variant_id && item.image_url">
                                     <input
                                         type="text"
                                         class="form-input w-full cursor-pointer"
@@ -231,12 +236,15 @@
                                     >
                                         <template x-for="option in filterOptions(index)" :key="option.id">
                                             <div
-                                                class="px-4 py-2 cursor-pointer hover:bg-indigo-100 flex flex-col"
+                                                class="px-4 py-2 cursor-pointer hover:bg-indigo-100 flex items-center gap-3"
                                                 @click="selectVariant(index, option)"
                                             >
-                                                <span class="font-medium" x-text="option.sku"></span>
-                                                <span class="text-gray-400 text-sm" x-text="option.name"></span>
-                                                <span class="text-gray-500 text-xs" x-text="option.attributes"></span>
+                                                <img :src="option.image_url" alt="" class="w-10 h-10 object-cover rounded border border-gray-200 bg-white" x-show="option.image_url">
+                                                <div class="flex flex-col">
+                                                    <span class="font-medium" x-text="option.sku"></span>
+                                                    <span class="text-gray-400 text-sm" x-text="option.name"></span>
+                                                    <span class="text-gray-500 text-xs" x-text="option.attributes"></span>
+                                                </div>
                                             </div>
                                         </template>
                                         <div x-show="filterOptions(index).length === 0" class="px-4 py-2 text-gray-400 text-sm">No results</div>

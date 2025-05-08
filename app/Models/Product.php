@@ -27,6 +27,8 @@ class Product extends Model
         'reseller_price' => 'decimal:2',
     ];
 
+    protected $appends = ['image_url'];
+
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
