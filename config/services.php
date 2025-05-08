@@ -31,4 +31,8 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'pdf_processor' => [
+        'url' => env('PDF_PROCESSOR_URL', 'http://localhost:3000'),
+    ],
+
 ];

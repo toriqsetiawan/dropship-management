@@ -13,6 +13,9 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.8",
         "livewire/livewire": "^3.4",
+        "mishagp/ocrmypdf": "^0.4.0",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
         "smalot/pdfparser": "^2.12",
         "spatie/pdf-to-text": "^1.54"
     },

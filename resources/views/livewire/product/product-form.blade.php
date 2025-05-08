@@ -280,11 +280,11 @@
                                 this.variants.forEach(v => v.stock = this.bulkStock);
                             },
                             applyBulkSku() {
-                                this.variants.forEach(v => {
+                                this.variants.forEach((v, idx) => {
                                     if (this.bulkSkuIsPrefix) {
                                         v.sku = (this.bulkSku ? this.bulkSku + '-' : '') + v.values.map(val => String(val).toLowerCase().replace(/\s+/g, '-')).join('-');
                                     } else {
-                                        v.sku = this.bulkSku;
+                                        v.sku = this.bulkSku ? this.bulkSku + '-' + idx : String(idx);
                                     }
                                 });
                             }
@@ -328,7 +328,7 @@
                                 </div>
                                 <div class="sm:col-span-2">
                                     <div class="pt-0">
-                                        <x-button type="button" @click="addAttribute">
+                                        <x-button type="button" @click="addAttribute" class="cursor-pointer">
                                             {{ __('product.actions.add_attribute') }}
                                         </x-button>
                                     </div>
@@ -355,8 +355,8 @@
                                             <span x-text="attribute.values.map(v => typeof v === 'object' ? v.value : v).join(', ')"></span>
                                         </div>
                                         <div>
-                                            <button type="button" @click="startEdit(index)" class="text-violet-500 hover:text-violet-600 mr-2">Edit</button>
-                                            <button type="button" @click="deleteAttribute(index)" class="text-red-500 hover:text-red-600">Delete</button>
+                                            <button type="button" @click="startEdit(index)" class="text-violet-500 hover:text-violet-600 mr-2 cursor-pointer">Edit</button>
+                                            <button type="button" @click="deleteAttribute(index)" class="text-red-500 hover:text-red-600 cursor-pointer">Delete</button>
                                         </div>
                                     </li>
                                 </template>
@@ -377,8 +377,8 @@
                                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ __('product.messages.attribute_values_help') }}</p>
                                 </div>
                                 <div class="flex justify-end">
-                                    <x-button type="button" @click="updateAttribute" class="mr-2">{{ __('common.actions.save') }}</x-button>
-                                    <x-button type="button" @click="cancelEdit" class="bg-gray-300 dark:bg-gray-600">{{ __('common.actions.cancel') }}</x-button>
+                                    <x-button type="button" @click="updateAttribute" class="mr-2 cursor-pointer">{{ __('common.actions.save') }}</x-button>
+                                    <x-button type="button" @click="cancelEdit" class="bg-gray-300 dark:bg-gray-600 cursor-pointer">{{ __('common.actions.cancel') }}</x-button>
                                 </div>
                             </div>
                         </div>
@@ -400,7 +400,7 @@
                                                 <span class="text-gray-700 dark:text-gray-200 sm:text-sm z-10">Rp</span>
                                             </div>
                                             <input type="number" min="0" x-model="bulkPrice" class="block w-full pl-10 z-0 border-gray-300 dark:bg-gray-900 dark:text-gray-100 rounded-md h-10" />
-                                            <x-button type="button" @click="applyBulkPrice" class="ml-2 bg-black text-white">{{ __('common.actions.apply') }}</x-button>
+                                            <x-button type="button" @click="applyBulkPrice" class="ml-2 bg-black text-white cursor-pointer">{{ __('common.actions.apply') }}</x-button>
                                         </div>
                                     </div>
                                     <div>
@@ -409,7 +409,7 @@
                                         </label>
                                         <div class="mt-1 relative rounded-md shadow-sm flex">
                                             <input type="number" min="0" x-model="bulkStock" class="block w-full border-gray-300 dark:bg-gray-900 dark:text-gray-100 rounded-md h-10" />
-                                            <x-button type="button" @click="applyBulkStock" class="ml-2 bg-black text-white">{{ __('common.actions.apply') }}</x-button>
+                                            <x-button type="button" @click="applyBulkStock" class="ml-2 bg-black text-white cursor-pointer">{{ __('common.actions.apply') }}</x-button>
                                         </div>
                                     </div>
                                     <div>
@@ -422,7 +422,7 @@
                                                 <input type="checkbox" x-model="bulkSkuIsPrefix" class="form-checkbox" />
                                                 <span>Prefix</span>
                                             </label>
-                                            <x-button type="button" @click="applyBulkSku" class="ml-2 bg-black text-white">{{ __('common.actions.apply') }}</x-button>
+                                            <x-button type="button" @click="applyBulkSku" class="ml-2 bg-black text-white cursor-pointer">{{ __('common.actions.apply') }}</x-button>
                                         </div>
                                     </div>
                                 </div>

@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Models\Reseller;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use mishagp\OCRmyPDF\OCRmyPDF;
 
 class TransactionController extends Controller
 {
@@ -18,6 +19,68 @@ class TransactionController extends Controller
         $resellers = $isDistributorOrSuperadmin ? Reseller::all() : [];
         $transactions = Transaction::with('user')->orderByDesc('created_at')->paginate(15);
         return view('transactions.index', compact('transactions', 'isDistributorOrSuperadmin', 'resellers'));
+    }
+
+    public function create()
+    {
+        $user = Auth::user();
+        $isDistributorOrSuperadmin = $user->hasRole(['distributor', 'superadmin']);
+        $resellers = $isDistributorOrSuperadmin ? Reseller::all() : [];
+        $products = Product::with('variants.attributeValues.attribute')->get();
+
+        return view('transactions.create', compact('isDistributorOrSuperadmin', 'resellers', 'products'));
+    }
+
+    public function store(Request $request)
+    {
+        $user = Auth::user();
+        $isDistributorOrSuperadmin = $user->hasRole(['distributor', 'superadmin']);
+
+        $rules = [
+            'shipping_number' => 'required|string|max:255',
+            'description' => 'required|string',
+            'items' => 'required|array|min:1',
+            'items.*.variant_id' => 'required|exists:product_variants,id',
+            'items.*.quantity' => 'required|integer|min:1',
+        ];
+
+        if ($isDistributorOrSuperadmin) {
+            $rules['user_id'] = 'required|exists:users,id';
+        }
+
+        $validated = $request->validate($rules);
+
+        $transaction = Transaction::create([
+            'transaction_code' => 'TRX-' . strtoupper(uniqid()),
+            'user_id' => $isDistributorOrSuperadmin ? $request->user_id : $user->id,
+            'shipping_number' => $request->shipping_number,
+            'total_paid' => 0,
+            'total_price' => 0,
+            'description' => $request->description,
+        ]);
+
+        // Create transaction items
+        foreach ($request->items as $item) {
+            $variant = ProductVariant::findOrFail($item['variant_id']);
+            $transaction->items()->create([
+                'variant_id' => $item['variant_id'],
+                'quantity' => $item['quantity'],
+                'factory_price' => $variant->factory_price,
+                'distributor_price' => $variant->distributor_price,
+                'reseller_price' => $variant->reseller_price,
+                'retail_price' => $variant->retail_price,
+            ]);
+        }
+
+        // Calculate total price
+        $totalPrice = $transaction->items->sum(function ($item) {
+            return $item->quantity * $item->retail_price;
+        });
+
+        $transaction->update(['total_price' => $totalPrice]);
+
+        return redirect()->route('transactions.index')
+            ->with('success', __('common.transaction.created_successfully'));
     }
 
     public function downloadPdf(Transaction $transaction)
@@ -40,9 +103,28 @@ class TransactionController extends Controller
         $validated = $request->validate($rules);
 
         $path = $request->file('shippingPdf')->store('shipping_pdfs');
+        $inputPath = storage_path('app/' . $path);
+        $ocrOutputPath = storage_path('app/ocr_output_' . uniqid() . '.pdf');
 
-        // Use Spatie PdfToText to extract text
-        $text = \Spatie\PdfToText\Pdf::getText(storage_path('app/' . $path));
+        // Run OCRmyPDF on the uploaded PDF
+        try {
+            OCRmyPDF::make($inputPath)
+                ->setOutputPDFPath($ocrOutputPath)
+                ->setExecutable('/opt/homebrew/bin/ocrmypdf')
+                ->run();
+        } catch (\Exception $e) {
+            \Log::error('OCRmyPDF failed: ' . $e->getMessage());
+            throw $e;
+        }
+
+        // Check if OCR output file exists
+        if (!file_exists($ocrOutputPath)) {
+            \Log::error('OCRmyPDF did not produce output file: ' . $ocrOutputPath);
+            throw new \Exception('OCRmyPDF failed to generate output PDF. Check input file and system dependencies.');
+        }
+
+        // Use Spatie PdfToText to extract text from the OCR-processed PDF
+        $text = \Spatie\PdfToText\Pdf::getText($ocrOutputPath);
 
         // Load all product variants with their product and attribute values
         $variants = \App\Models\ProductVariant::with('product', 'attributeValues.attribute')->get();
@@ -53,7 +135,7 @@ class TransactionController extends Controller
             \Log::info('PDF Page Text:', ['text' => $text]);
 
             // Initialize variables
-            $shippingNumber = $orderNumber = $recipient = $sender = $productName = $sku = $variation = $qty = $weight = $cod = $deadline = null;
+            $shippingNumber = $orderNumber = $recipient = $sender = $productName = $sku = $variation = $qty = $weight = $deadline = null;
 
             // Recipient
             if (preg_match('/Penerima:\s*([^\n]+)/i', $text, $m)) $recipient = trim($m[1]);
@@ -159,7 +241,6 @@ class TransactionController extends Controller
                 __('common.transaction.variation') . ': ' . $variation . "\n" .
                 __('common.transaction.qty') . ': ' . $qty . "\n" .
                 __('common.weight') . ': ' . $weight . " gr\n" .
-                __('common.cod') . ': ' . $cod . "\n" .
                 __('common.shipping_deadline') . ': ' . $deadline;
 
             Transaction::create([
@@ -172,6 +253,11 @@ class TransactionController extends Controller
                 'description' => $description,
             ]);
             $created++;
+        }
+
+        // Clean up the OCR output file
+        if (file_exists($ocrOutputPath)) {
+            unlink($ocrOutputPath);
         }
 
         return back()->with('success', "Shipping PDF processed. $created transaction(s) created!");

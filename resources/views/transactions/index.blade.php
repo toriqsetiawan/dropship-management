@@ -10,10 +10,15 @@
                     </h1>
                 </div>
                 <div class="grid grid-flow-col sm:auto-cols-max justify-start sm:justify-end gap-2">
+                    <!-- Add Transaction (Manual) button -->
+                    <a href="{{ route('transactions.create') }}" class="btn bg-indigo-500 hover:bg-indigo-600 text-white cursor-pointer">
+                        <i class="fa-solid fa-plus w-4 h-4"></i>
+                        <span class="hidden xs:block ml-2">{{ __('common.transaction.add_manual') }}</span>
+                    </a>
                     <!-- Add Transaction (PDF Upload) button -->
-                    <button @click="open = true" class="btn bg-violet-500 hover:bg-violet-600 text-white">
-                        <i class="fa-solid fa-file-arrow-up w-4 h-4"></i>
-                        <span class="hidden xs:block ml-2">{{ __('common.transaction.title') }}</span>
+                    <button @click="open = true" class="btn bg-violet-500 hover:bg-violet-600 text-white cursor-pointer">
+                        <i class="fa-solid fa-file-pdf w-4 h-4"></i>
+                        <span class="hidden xs:block ml-2">{{ __('common.transaction.add_pdf') }}</span>
                     </button>
                 </div>
             </div>
@@ -29,7 +34,7 @@
 
             <!-- Bulk Delete Button -->
             <div class="mb-4 flex items-center gap-2">
-                <button type="button" class="btn bg-red-500 hover:bg-red-600 text-white"
+                <button type="button" class="btn bg-red-500 hover:bg-red-600 text-white cursor-pointer"
                     :disabled="selected.length === 0" @click="$dispatch('open-delete-modal', {
                         isBulk: true,
                         itemIds: selected,
@@ -75,14 +80,14 @@
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">{{
                         $transaction->created_at->format('Y-m-d H:i') }}</td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                        <button type="button" class="text-violet-600 hover:underline focus:outline-none"
+                        <button type="button" class="text-violet-600 hover:underline focus:outline-none cursor-pointer"
                             @click="showDesc{{ $transaction->id }} = true">{{ __('common.see_description') }}</button>
                         <div x-show="showDesc{{ $transaction->id }}"
                             class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
                             style="display: none;">
                             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full p-6 relative">
                                 <button @click="showDesc{{ $transaction->id }} = false"
-                                    class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl">&times;</button>
+                                    class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl cursor-pointer">&times;</button>
                                 <h2 class="text-lg font-semibold mb-4">{{ __('common.transaction.description') }}</h2>
                                 <pre class="whitespace-pre-wrap text-sm">{{ $transaction->description }}</pre>
                             </div>
@@ -103,7 +108,7 @@
                     </td>
                 </tr>
                 @empty
-                <x-table.empty-row :message="__('common.no_transactions_found')" />
+                <x-table.empty-row :colspan="7" :message="__('common.no_transactions_found')" />
                 @endforelse
             </x-table>
 
@@ -117,7 +122,7 @@
                 style="display: none;">
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full p-6 relative">
                     <button @click="open = false"
-                        class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl">&times;</button>
+                        class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl cursor-pointer">&times;</button>
                     @include('transactions.partials.upload-form')
                 </div>
             </div>
@@ -135,7 +140,7 @@
                     @csrf
                     @method('DELETE')
                     <input type="hidden" name="ids" :value="JSON.stringify(ids)">
-                    <button type="submit" class="btn bg-red-600 text-white">{{ __('common.actions.delete') }}</button>
+                    <button type="submit" class="btn bg-red-600 text-white cursor-pointer">{{ __('common.actions.delete') }}</button>
                 </form>
             </x-modal.delete-confirmation>
         </div>
