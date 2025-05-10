@@ -61,6 +61,8 @@
             shippingNumber: '',
             description: '',
             items: [],
+            selectedReseller: null,
+            resellerSearch: '',
             handlePdfUpload(event) {
                 const file = event.target.files[0];
                 if (file) {
@@ -78,6 +80,10 @@
                         this.shippingNumber = data.shipping_number || '';
                         this.description = data.description || '';
                         this.items = data.items || [];
+                        if (data.reseller) {
+                            this.selectedReseller = data.reseller.id;
+                            this.resellerSearch = data.reseller.name;
+                        }
                     });
                 }
             }
@@ -112,11 +118,10 @@
                         </div>
                         <!-- Reseller Selection (for distributor/superadmin) -->
                         @if(is_distributor_or_admin(auth()->user()))
-                        <div x-data="{
+                        <div class="relative" x-data="{
                             open: false,
-                            search: '',
-                            selected: {{ old('user_id') ? old('user_id') : 'null' }},
-                            resellers: @js($resellers),
+                            search: $root.resellerSearch || '',
+                            get resellers() { return @js($resellers); },
                             get filtered() {
                                 if (!this.search) return this.resellers;
                                 return this.resellers.filter(r =>
@@ -125,15 +130,19 @@
                                 );
                             },
                             select(reseller) {
-                                this.selected = reseller.id;
+                                $root.selectedReseller = reseller.id;
                                 this.search = reseller.name;
                                 this.open = false;
                             },
                             selectedName() {
-                                const found = this.resellers.find(r => r.id == this.selected);
+                                const found = this.resellers.find(r => r.id == $root.selectedReseller);
                                 return found ? found.name : '';
                             }
-                        }" class="relative">
+                        }" x-init="$watch('$root.selectedReseller', value => {
+                            if (value) {
+                                this.search = this.selectedName();
+                            }
+                        })">
                             <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300" for="user_id_search">
                                 {{ __('common.select_reseller') }} <span class="text-red-500">*</span>
                             </label>
@@ -149,7 +158,7 @@
                                 autocomplete="off"
                                 required
                             />
-                            <input type="hidden" name="user_id" :value="selected">
+                            <input type="hidden" name="user_id" :value="$root.selectedReseller">
                             <div x-show="open" @click.away="open = false" class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto">
                                 <template x-for="reseller in filtered" :key="reseller.id">
                                     <div class="px-4 py-2 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center gap-3" @click="select(reseller)">

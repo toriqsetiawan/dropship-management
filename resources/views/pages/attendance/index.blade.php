@@ -38,6 +38,8 @@
                 __('attendance.status.absent'),
                 __('attendance.status.sick'),
                 __('attendance.status.leave'),
+                __('attendance.fields.approximate_paid_salary'),
+                __('attendance.fields.minimum_bonus'),
                 __('common.actions_column')
             ]"
             :title="__('attendance.summary') . ' (' . __('attendance.current_month') . ')'"
@@ -50,13 +52,17 @@
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">{{ $summary['absent'] }}</td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">{{ $summary['sick'] }}</td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">{{ $summary['leave'] }}</td>
+                    <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">Rp {{ number_format($summary['approximate_paid_salary'], 0, ',', '.') }}</td>
+                    <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">Rp {{ number_format($summary['minimum_bonus'], 0, ',', '.') }}</td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                        <a href="{{ route('attendance.manage', ['employee' => $summary['employee']->id]) }}" class="btn bg-indigo-500 hover:bg-indigo-600 text-white text-xs">{{ __('attendance.actions.manage') }}</a>
+                        <a href="{{ route('attendance.manage', ['employee' => $summary['employee']->id]) }}" class="text-violet-500 hover:text-violet-600">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
                         <button type="button"
-                            class="btn bg-green-600 hover:bg-green-700 text-white text-xs ml-2"
+                            class="btn btn-link hover:text-green-700 ml-2 cursor-pointer"
                             @click="selectedEmployee = {{ $summary['employee']->id }}; selectedEmployeeName = '{{ addslashes($summary['employee']->name) }}'; showPayslipModal = true; bonus = 0;"
                         >
-                            {{ __('attendance.actions.generate_payslip', ['name' => $summary['employee']->name]) }}
+                           <i class="fa-solid fa-file-invoice-dollar me-2"></i> {{ __('attendance.actions.generate_payslip', ['name' => $summary['employee']->name]) }}
                         </button>
                     </td>
                 </tr>
@@ -64,6 +70,12 @@
             @empty
                 <x-table.empty-row :message="__('attendance.messages.no_data')" />
             @endforelse
+            <tr>
+                <td colspan="5" class="text-center font-semibold px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">{{ __('attendance.fields.approximate_paid_salary') }}</td>
+                <td class="font-bold">Rp {{ number_format($totalApproximatePaidSalary, 0, ',', '.') }}</td>
+                <td class="font-bold">Rp {{ number_format(collect($attendanceSummary)->sum('minimum_bonus'), 0, ',', '.') }}</td>
+                <td class="font-bold">Rp {{ number_format($totalApproximatePaidSalary + collect($attendanceSummary)->sum('minimum_bonus'), 0, ',', '.') }}</td>
+            </tr>
         </x-table>
         <!-- Payslip Modal -->
         <div x-show="showPayslipModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40" x-cloak>

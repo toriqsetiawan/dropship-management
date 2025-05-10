@@ -22,6 +22,8 @@ return [
         'hours' => 'Jam',
         'employee' => 'Karyawan',
         'bonus' => 'Bonus',
+        'approximate_paid_salary' => 'Perkiraan Gaji Dibayar',
+        'minimum_bonus' => 'Bonus Minimum',
     ],
     'messages' => [
         'generated' => 'Data absensi berhasil dibuat.',

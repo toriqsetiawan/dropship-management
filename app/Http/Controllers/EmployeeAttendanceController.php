@@ -18,6 +18,15 @@ class EmployeeAttendanceController extends Controller
         // Attendance summary for current month
         $currentMonth = now()->format('m');
         $currentYear = now()->format('Y');
+        // Calculate working days in the month (excluding Sundays)
+        $startDate = Carbon::createFromDate($currentYear, $currentMonth, 1);
+        $endDate = $startDate->copy()->endOfMonth();
+        $workingDays = 0;
+        for ($date = $startDate->copy(); $date <= $endDate; $date->addDay()) {
+            if ($date->dayOfWeek !== Carbon::SUNDAY) {
+                $workingDays++;
+            }
+        }
         $attendanceSummary = [];
         foreach ($employees as $employee) {
             $summary = [
@@ -37,16 +46,24 @@ class EmployeeAttendanceController extends Controller
                     $summary[$record->status]++;
                 }
             }
+            $dailySalary = $workingDays > 0 ? $employee->salary / $workingDays : 0;
+            $approximatePaidSalary = $summary['present'] * $dailySalary;
+            $minimumBonus = 10000 * $summary['present'];
             $attendanceSummary[] = [
                 'employee' => $employee,
                 'present' => $summary['present'],
                 'absent' => $summary['absent'],
                 'sick' => $summary['sick'],
                 'leave' => $summary['leave'],
+                'approximate_paid_salary' => $approximatePaidSalary,
+                'minimum_bonus' => $minimumBonus,
             ];
         }
 
-        return view('pages.attendance.index', compact('employees', 'attendanceSummary'));
+        $totalApproximatePaidSalary = array_sum(array_column($attendanceSummary, 'approximate_paid_salary'));
+        $totalPresentDays = array_sum(array_column($attendanceSummary, 'present'));
+        $minimumBonus = 10000 * $totalPresentDays * count($employees);
+        return view('pages.attendance.index', compact('employees', 'attendanceSummary', 'totalApproximatePaidSalary', 'minimumBonus'));
     }
 
     public function store(Request $request)

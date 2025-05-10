@@ -6,7 +6,7 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-2xl sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xl sm:rounded-lg">
                 <div class="p-6 lg:p-8">
                     <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-6">
@@ -31,17 +31,31 @@
                             </div>
 
                             <!-- Role -->
-                            <div>
+                            <div x-data="{ role: '{{ old('role') }}' }">
                                 <x-label for="role" :value="__('user.fields.role')" />
-                                <select id="role" name="role" required class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm">
+                                <select id="role" name="role" required class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm" x-model="role">
                                     <option value="">{{ __('Select Role') }}</option>
-                                    @foreach(\App\Models\Role::all() as $role)
-                                        <option value="{{ $role->name }}" {{ old('role') == $role->name ? 'selected' : '' }}>
-                                            {{ $role->description }}
+                                    @foreach($roles as $roleObj)
+                                        <option value="{{ $roleObj->name }}" {{ old('role') == $roleObj->name ? 'selected' : '' }}>
+                                            {{ $roleObj->name }}
                                         </option>
                                     @endforeach
                                 </select>
                                 <x-input-error :messages="$errors->get('role')" class="mt-2" />
+
+                                <!-- Parent Distributor Dropdown -->
+                                <div x-show="role === 'reseller' || role === 'retail'" class="mt-4">
+                                    <x-label for="parent_id" :value="'Parent Distributor (optional)'" />
+                                    <select name="parent_id" id="parent_id" class="form-select w-full">
+                                        <option value="">None</option>
+                                        @foreach($distributors as $distributor)
+                                            <option value="{{ $distributor->id }}" {{ old('parent_id') == $distributor->id ? 'selected' : '' }}>
+                                                {{ $distributor->name }} ({{ $distributor->email }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('parent_id')" class="mt-2" />
+                                </div>
                             </div>
 
                             <!-- Password -->

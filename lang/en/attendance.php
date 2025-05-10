@@ -22,6 +22,8 @@ return [
         'hours' => 'Hours',
         'employee' => 'Employee',
         'bonus' => 'Bonus',
+        'approximate_paid_salary' => 'Approximate Paid Salary',
+        'minimum_bonus' => 'Minimum Bonus',
     ],
     'messages' => [
         'generated' => 'Attendance data has been generated successfully.',

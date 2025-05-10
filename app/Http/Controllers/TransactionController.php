@@ -196,15 +196,52 @@ class TransactionController extends Controller
         $pages = preg_split('/\f/', $text);
         $firstPageText = $pages[0];
 
-        // --- Your regex parsing logic here ---
+        // Extract shipping number, recipient and sender name
         $shippingNumber = null;
-        if (preg_match('/Resi:\s*([A-Z0-9]+)/i', $firstPageText, $m)) $shippingNumber = $m[1];
-        // You can add more parsing for description/items as needed
+        $recipient = null;
+        $senderName = null;
+
+        if (preg_match('/Resi:\s*([A-Z0-9]+)/i', $firstPageText, $m)) {
+            $shippingNumber = $m[1];
+        }
+
+        // First try to find recipient and sender in the same line
+        if (preg_match('/Penerima:([^\n]+)/i', $firstPageText, $m)) {
+            $raw = trim($m[1]);
+            if (strpos($raw, 'Pengirim:') !== false) {
+                $parts = explode('Pengirim:', $raw);
+                $recipient = trim($parts[0]);
+                $senderName = trim($parts[1]);
+            } else {
+                $recipient = $raw;
+            }
+        }
+
+        // If sender not found yet, try to find it separately
+        if (!$senderName && preg_match('/Pengirim:([^\n]+)/i', $firstPageText, $m)) {
+            $senderName = trim($m[1]);
+        }
+
+        // Find matching reseller by name
+        $reseller = null;
+        if ($senderName) {
+            $reseller = User::whereHas('role', function($query) {
+                $query->where('name', 'reseller');
+            })->where('name', 'like', '%' . $senderName . '%')->first();
+        }
 
         return response()->json([
             'shipping_number' => $shippingNumber,
-            'description' => $firstPageText, // or your parsed description
-            'items' => [] // fill with parsed items if possible
+            'description' => $firstPageText,
+            'items' => [],
+            'recipient' => $recipient,
+            'sender' => $senderName,
+            'reseller' => $reseller ? [
+                'id' => $reseller->id,
+                'name' => $reseller->name,
+                'email' => $reseller->email,
+                'profile_photo_url' => str_replace('\\', '/', $reseller->profile_photo_url)
+            ] : null
         ]);
     }
 }

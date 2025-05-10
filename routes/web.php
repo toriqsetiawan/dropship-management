@@ -85,10 +85,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/transactions/parse-pdf', [TransactionController::class, 'parsePdf'])->name('transactions.parse-pdf');
 
     // Employee Routes
-    Route::resource('employees', EmployeeController::class);
-    Route::get('/attendance', [EmployeeAttendanceController::class, 'index'])->name('attendance.index');
-    Route::post('/attendance', [EmployeeAttendanceController::class, 'store'])->name('attendance.store');
-    Route::post('/attendance/generate-month', [EmployeeAttendanceController::class, 'generateMonthAttendance'])->name('attendance.generate-month');
-    Route::get('/attendance/manage/{employee}', [EmployeeAttendanceController::class, 'manage'])->name('attendance.manage');
-    Route::get('/attendance/payslip/{employee}', [EmployeeAttendanceController::class, 'generatePayslip'])->name('attendance.payslip');
+    Route::group(['middleware' => ['role:administrator']], function () {
+        Route::resource('employees', EmployeeController::class);
+        Route::get('/attendance', [EmployeeAttendanceController::class, 'index'])->name('attendance.index');
+        Route::post('/attendance', [EmployeeAttendanceController::class, 'store'])->name('attendance.store');
+        Route::post('/attendance/generate-month', [EmployeeAttendanceController::class, 'generateMonthAttendance'])->name('attendance.generate-month');
+        Route::get('/attendance/manage/{employee}', [EmployeeAttendanceController::class, 'manage'])->name('attendance.manage');
+        Route::get('/attendance/payslip/{employee}', [EmployeeAttendanceController::class, 'generatePayslip'])->name('attendance.payslip');
+    });
 });

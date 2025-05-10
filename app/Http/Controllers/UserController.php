@@ -19,7 +19,12 @@ class UserController extends Controller
     public function create()
     {
         $roles = Role::all();
-        return view('pages.user.create', compact('roles'));
+
+        $distributors = User::whereHas('role', function($q) {
+            $q->where('name', 'distributor');
+        })->get();
+
+        return view('pages.user.create', compact('roles', 'distributors'));
     }
 
     public function store(Request $request)
@@ -39,7 +44,15 @@ class UserController extends Controller
 
         $validated['password'] = Hash::make($validated['password']);
 
-        User::create($validated);
+        if ($request->parent_id) {
+            $validated['current_team_id'] = $request->parent_id;
+        }
+
+        $user = User::create($validated);
+
+        $role = Role::where('name', $validated['role'])->first();
+        $user->role()->associate($role);
+        $user->save();
 
         return redirect()->route('users.index')
             ->with('success', __('user.messages.created'));
@@ -48,7 +61,10 @@ class UserController extends Controller
     public function edit(User $user)
     {
         $roles = Role::all();
-        return view('pages.user.edit', compact('user', 'roles'));
+        $distributors = User::whereHas('role', function($q) {
+            $q->where('name', 'distributor');
+        })->get();
+        return view('pages.user.edit', compact('user', 'roles', 'distributors'));
     }
 
     public function update(Request $request, User $user)
@@ -72,7 +88,15 @@ class UserController extends Controller
             unset($validated['password']);
         }
 
+        if ($request->parent_id) {
+            $validated['current_team_id'] = $request->parent_id;
+        }
+
         $user->update($validated);
+
+        $role = Role::where('name', $validated['role'])->first();
+        $user->role()->associate($role);
+        $user->save();
 
         return redirect()->route('users.index')
             ->with('success', __('user.messages.updated'));

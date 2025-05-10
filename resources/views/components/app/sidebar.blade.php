@@ -75,21 +75,32 @@
                             </div>
                         </a>
                     </li>
-                    <!-- Employees -->
-                    <li class="pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-linear-to-r @if(in_array(Request::segment(1), ['employees'])){{ 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]' }}@endif">
-                        <a class="block text-gray-800 dark:text-gray-100 truncate transition @if(!in_array(Request::segment(1), ['employees'])){{ 'hover:text-gray-900 dark:hover:text-white' }}@endif" href="{{ route('employees.index') }}">
-                            <div class="flex items-center">
-                                <i class="fa-solid fa-id-badge w-4 h-4 @if(in_array(Request::segment(1), ['employees'])){{ 'text-violet-500' }}@else{{ 'text-gray-400 dark:text-gray-500' }}@endif"></i>
-                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">{{ __('common.employees') }}</span>
-                            </div>
-                        </a>
-                    </li>
                     <!-- Transactions -->
                     <li class="pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-linear-to-r @if(in_array(Request::segment(1), ['transactions'])){{ 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]' }}@endif">
                         <a class="block text-gray-800 dark:text-gray-100 truncate transition @if(!in_array(Request::segment(1), ['transactions'])){{ 'hover:text-gray-900 dark:hover:text-white' }}@endif" href="{{ route('transactions.index') }}">
                             <div class="flex items-center">
                                 <i class="fa-solid fa-store w-4 h-4 @if(in_array(Request::segment(1), ['transactions'])){{ 'text-violet-500' }}@else{{ 'text-gray-400 dark:text-gray-500' }}@endif"></i>
                                 <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">{{ __('common.transaction.title') }}</span>
+                            </div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            @if(Auth::user()->role->name === 'administrator')
+            <!-- More group -->
+            <div>
+                <h3 class="text-xs uppercase text-gray-400 dark:text-gray-500 font-semibold pl-3">
+                    <span class="hidden lg:block lg:sidebar-expanded:hidden 2xl:hidden text-center w-6" aria-hidden="true">•••</span>
+                    <span class="lg:hidden lg:sidebar-expanded:block 2xl:block">More</span>
+                </h3>
+                <ul class="mt-3">
+                    <!-- Employees -->
+                    <li class="pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-linear-to-r @if(in_array(Request::segment(1), ['employees'])){{ 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]' }}@endif">
+                        <a class="block text-gray-800 dark:text-gray-100 truncate transition @if(!in_array(Request::segment(1), ['employees'])){{ 'hover:text-gray-900 dark:hover:text-white' }}@endif" href="{{ route('employees.index') }}">
+                            <div class="flex items-center">
+                                <i class="fa-solid fa-id-badge w-4 h-4 @if(in_array(Request::segment(1), ['employees'])){{ 'text-violet-500' }}@else{{ 'text-gray-400 dark:text-gray-500' }}@endif"></i>
+                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">{{ __('common.employees') }}</span>
                             </div>
                         </a>
                     </li>
@@ -104,61 +115,7 @@
                     </li>
                 </ul>
             </div>
-            <!-- More group -->
-            {{-- <div>
-                <h3 class="text-xs uppercase text-gray-400 dark:text-gray-500 font-semibold pl-3">
-                    <span class="hidden lg:block lg:sidebar-expanded:hidden 2xl:hidden text-center w-6" aria-hidden="true">•••</span>
-                    <span class="lg:hidden lg:sidebar-expanded:block 2xl:block">More</span>
-                </h3>
-                <ul class="mt-3">
-                    <!-- Authentication -->
-                    <li class="pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0" x-data="{ open: false }">
-                        <a class="block text-gray-800 dark:text-gray-100 truncate transition" :class="open ? '' : 'hover:text-gray-900 dark:hover:text-white'" href="#0" @click.prevent="open = !open; sidebarExpanded = true">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center">
-                                    <i class="fa-solid fa-lock w-4 h-4 text-gray-400 dark:text-gray-500"></i>
-                                    <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">Authentication</span>
-                                </div>
-                                <!-- Icon -->
-                                <div class="flex shrink-0 ml-2 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">
-                                    <i class="fa-solid fa-chevron-down shrink-0 ml-1 text-gray-400 dark:text-gray-500 transition-transform duration-150" :class="open ? 'rotate-180' : 'rotate-0'"></i>
-                                </div>
-                            </div>
-                        </a>
-                        <div class="lg:hidden lg:sidebar-expanded:block 2xl:block">
-                            <ul class="pl-8 mt-1" :class="{ 'hidden': !open }" x-cloak>
-                                <li class="mb-1 last:mb-0">
-                                    <form method="POST" action="{{ route('logout') }}" x-data>
-                                        @csrf
-
-                                        <a class="block text-gray-500/90 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition truncate" href="{{ route('logout') }}" @click.prevent="$root.submit();">
-                                            <span class="text-sm font-medium lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">Sign In</span>
-                                        </a>
-                                    </form>
-                                </li>
-                                <li class="mb-1 last:mb-0">
-                                    <form method="POST" action="{{ route('logout') }}" x-data>
-                                        @csrf
-
-                                        <a class="block text-gray-500/90 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition truncate" href="{{ route('logout') }}" @click.prevent="$root.submit();">
-                                            <span class="text-sm font-medium lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">Sign Up</span>
-                                        </a>
-                                    </form>
-                                </li>
-                                <li class="mb-1 last:mb-0">
-                                    <form method="POST" action="{{ route('logout') }}" x-data>
-                                        @csrf
-
-                                        <a class="block text-gray-500/90 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition truncate" href="{{ route('logout') }}" @click.prevent="$root.submit();">
-                                            <span class="text-sm font-medium lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">Reset Password</span>
-                                        </a>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                </ul>
-            </div> --}}
+            @endif
         </div>
 
         <!-- Expand / collapse button -->
