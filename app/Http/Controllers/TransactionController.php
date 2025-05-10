@@ -230,10 +230,66 @@ class TransactionController extends Controller
             })->where('name', 'like', '%' . $senderName . '%')->first();
         }
 
+        // Extract items/products (multi-line block parsing, improved for multi-line product names)
+        $items = [];
+        $lines = preg_split('/\r\n|\r|\n/', $firstPageText);
+
+        for ($i = 0; $i < count($lines); $i++) {
+            if (stripos($lines[$i], 'Nama Produk') !== false) {
+                $productNameLines = [];
+                $sku = '';
+                $variation = '';
+                $qty = 1;
+                $foundSku = false;
+
+                // Collect all lines after 'Nama Produk' up to 'Variasi' or 'Qty' or until SKU is found
+                for ($j = $i + 1; $j < min($i + 12, count($lines)); $j++) {
+                    if (stripos($lines[$j], 'Variasi') !== false || stripos($lines[$j], 'Qty') !== false) {
+                        break;
+                    }
+                    // SKU line
+                    if (preg_match('/SBR-\d+|BDMSBR|GUNUNG|GNG-\d+/i', $lines[$j], $m)) {
+                        $sku = trim($m[0]);
+                        $foundSku = true;
+                        // Remove SKU and '|' from the line, add the rest to product name
+                        $lineWithoutSku = trim(str_replace([$sku, '|'], '', $lines[$j]));
+                        if ($lineWithoutSku !== '') {
+                            $productNameLines[] = $lineWithoutSku;
+                        }
+                    } else {
+                        // Collect all lines as part of the product name
+                        $productNameLines[] = trim($lines[$j]);
+                    }
+                }
+
+                // Now, look for variation/qty after 'Variasi'
+                for ($j = $i + 1; $j < min($i + 12, count($lines)); $j++) {
+                    if (stripos($lines[$j], 'Variasi') !== false && isset($lines[$j + 1])) {
+                        $variationLine = trim($lines[$j + 1]);
+                        if (preg_match('/(.+),(\d+)\s+(\d+)/', $variationLine, $vm)) {
+                            $variation = trim($vm[1]) . ',' . trim($vm[2]);
+                            $qty = (int) $vm[3];
+                        }
+                    }
+                }
+
+                $productName = trim(implode(' ', $productNameLines));
+
+                if ($sku && $productName) {
+                    $items[] = [
+                        'product' => $productName,
+                        'sku' => $sku,
+                        'variation' => $variation,
+                        'qty' => $qty,
+                    ];
+                }
+            }
+        }
+
         return response()->json([
             'shipping_number' => $shippingNumber,
             'description' => $firstPageText,
-            'items' => [],
+            'items' => $items,
             'recipient' => $recipient,
             'sender' => $senderName,
             'reseller' => $reseller ? [

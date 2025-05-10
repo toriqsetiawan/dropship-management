@@ -212,17 +212,19 @@
                                                 class="form-input w-full cursor-pointer dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
                                                 placeholder="{{ __('common.transaction.select_product') }}"
                                                 x-model="item.search"
-                                                @focus="dropdownOpen = true"
-                                                @input="dropdownOpen = true"
-                                                readonly="false"
+                                                @focus="setTimeout(() => dropdownOpen = true, 50)"
+                                                @click="setTimeout(() => dropdownOpen = true, 50)"
                                                 :readonly="!!item.variant_id"
+                                                autocomplete="off"
                                             />
                                             <button type="button" x-show="item.variant_id" @click.prevent.stop="clearVariant(index)" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
                                                 <i class="fa-solid fa-xmark"></i>
                                             </button>
                                             <div
                                                 x-show="dropdownOpen && !item.variant_id"
-                                                class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto"
+                                                @click.away="dropdownOpen = false"
+                                                class="absolute z-30 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto"
+                                                style="top: 100%; left: 0;"
                                             >
                                                 <template x-for="option in filterOptions(index)" :key="option.id">
                                                     <div
