@@ -213,7 +213,7 @@
                                     <input
                                         type="text"
                                         class="form-input w-full cursor-pointer"
-                                        placeholder="{{ __('common.select_product') }}"
+                                        placeholder="{{ __('common.transaction.select_product') }}"
                                         x-model="item.search"
                                         @focus="dropdownOpen = true"
                                         @input="dropdownOpen = true"
@@ -263,7 +263,7 @@
 
                     <button type="button" @click="addItem()" class="add-item-btn mt-2">
                         <i class="fa-solid fa-plus"></i>
-                        <span>{{ __('common.add_item') }}</span>
+                        <span>{{ __('common.transaction.add_item') }}</span>
                     </button>
 
                     @error('items')

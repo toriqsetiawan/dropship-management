@@ -15,11 +15,6 @@
                         <i class="fa-solid fa-plus w-4 h-4"></i>
                         <span class="hidden xs:block ml-2">{{ __('common.transaction.add_manual') }}</span>
                     </a>
-                    <!-- Add Transaction (PDF Upload) button -->
-                    <button @click="open = true" class="btn bg-violet-500 hover:bg-violet-600 text-white cursor-pointer">
-                        <i class="fa-solid fa-file-pdf w-4 h-4"></i>
-                        <span class="hidden xs:block ml-2">{{ __('common.transaction.add_pdf') }}</span>
-                    </button>
                 </div>
             </div>
 
@@ -108,23 +103,13 @@
                     </td>
                 </tr>
                 @empty
-                <x-table.empty-row :colspan="7" :message="__('common.no_transactions_found')" />
+                <x-table.empty-row :colspan="7" :message="__('common.transaction.no_transactions_found')" />
                 @endforelse
             </x-table>
 
             <!-- Pagination -->
             <div class="mt-8">
                 {{ $transactions->links() }}
-            </div>
-
-            <!-- PDF Upload Modal -->
-            <div x-show="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-                style="display: none;">
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full p-6 relative">
-                    <button @click="open = false"
-                        class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl cursor-pointer">&times;</button>
-                    @include('pages.transactions.partials.upload-form')
-                </div>
             </div>
 
             <!-- Delete Confirmation Modal Component -->

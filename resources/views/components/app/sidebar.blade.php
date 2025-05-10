@@ -44,7 +44,7 @@
                         <a class="block text-gray-800 dark:text-gray-100 truncate transition @if(!in_array(Request::segment(1), ['dashboard'])){{ 'hover:text-gray-900 dark:hover:text-white' }}@endif" href="{{ route('dashboard') }}">
                             <div class="flex items-center">
                                 <i class="fa-solid fa-gauge-high w-4 h-4 @if(in_array(Request::segment(1), ['dashboard'])){{ 'text-violet-500' }}@else{{ 'text-gray-400 dark:text-gray-500' }}@endif"></i>
-                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">Dashboard</span>
+                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">{{ __('dashboard.title') }}</span>
                             </div>
                         </a>
                     </li>
@@ -75,12 +75,30 @@
                             </div>
                         </a>
                     </li>
+                    <!-- Employees -->
+                    <li class="pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-linear-to-r @if(in_array(Request::segment(1), ['employees'])){{ 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]' }}@endif">
+                        <a class="block text-gray-800 dark:text-gray-100 truncate transition @if(!in_array(Request::segment(1), ['employees'])){{ 'hover:text-gray-900 dark:hover:text-white' }}@endif" href="{{ route('employees.index') }}">
+                            <div class="flex items-center">
+                                <i class="fa-solid fa-id-badge w-4 h-4 @if(in_array(Request::segment(1), ['employees'])){{ 'text-violet-500' }}@else{{ 'text-gray-400 dark:text-gray-500' }}@endif"></i>
+                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">{{ __('common.employees') }}</span>
+                            </div>
+                        </a>
+                    </li>
                     <!-- Transactions -->
                     <li class="pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-linear-to-r @if(in_array(Request::segment(1), ['transactions'])){{ 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]' }}@endif">
                         <a class="block text-gray-800 dark:text-gray-100 truncate transition @if(!in_array(Request::segment(1), ['transactions'])){{ 'hover:text-gray-900 dark:hover:text-white' }}@endif" href="{{ route('transactions.index') }}">
                             <div class="flex items-center">
                                 <i class="fa-solid fa-store w-4 h-4 @if(in_array(Request::segment(1), ['transactions'])){{ 'text-violet-500' }}@else{{ 'text-gray-400 dark:text-gray-500' }}@endif"></i>
-                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">Transactions</span>
+                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">{{ __('common.transaction.title') }}</span>
+                            </div>
+                        </a>
+                    </li>
+                    <!-- Attendance -->
+                    <li class="pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-linear-to-r @if(in_array(Request::segment(1), ['attendance'])){{ 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]' }}@endif">
+                        <a class="block text-gray-800 dark:text-gray-100 truncate transition @if(!in_array(Request::segment(1), ['attendance'])){{ 'hover:text-gray-900 dark:hover:text-white' }}@endif" href="{{ route('attendance.index') }}">
+                            <div class="flex items-center">
+                                <i class="fa-solid fa-calendar-check w-4 h-4 @if(in_array(Request::segment(1), ['attendance'])){{ 'text-violet-500' }}@else{{ 'text-gray-400 dark:text-gray-500' }}@endif"></i>
+                                <span class="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">{{ __('common.attendance') }}</span>
                             </div>
                         </a>
                     </li>
