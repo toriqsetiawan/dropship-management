@@ -81,7 +81,7 @@
                                 class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
                                 style="display: none;"
                             >
-                                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+                                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full p-6 relative overflow-auto" style="max-height: 80vh;">
                                     <button @click="open = false" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl cursor-pointer">&times;</button>
                                     <h3 class="text-lg font-semibold mb-4">{{ __('product.variant_details') }}</h3>
                                     @if($product->variants_count)

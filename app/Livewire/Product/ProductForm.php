@@ -373,12 +373,12 @@ class ProductForm extends Component
         }
 
         // Delete removed variants
-        if ($this->productId) {
-            $existingVariantIds = collect($this->variants)->pluck('id')->filter()->toArray();
-            ProductVariant::where('product_id', $this->product->id)
-                ->whereNotIn('id', $existingVariantIds)
-                ->delete();
-        }
+        // if ($this->productId) {
+        //     $existingVariantIds = collect($this->variants)->pluck('id')->filter()->toArray();
+        //     ProductVariant::where('product_id', $this->product->id)
+        //         ->whereNotIn('id', $existingVariantIds)
+        //         ->delete();
+        // }
 
         if ($this->image) {
             $filename = $this->image->store('products', 'public');

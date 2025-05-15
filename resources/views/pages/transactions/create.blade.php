@@ -58,16 +58,71 @@
     function transactionForm() {
         return {
             pdfUrl: null,
-            shippingNumber: '',
-            description: '',
-            items: [],
+            shipments: [], // array of parsed shipments
+            products: @json($products),
+            resellers: @json($resellers),
             selectedReseller: null,
             resellerSearch: '',
+            // Extract only the product block from description
+            getProductBlock(desc) {
+                if (!desc) return '';
+                const start = desc.indexOf('Nama Produk');
+                if (start === -1) return desc;
+                // Find end: next 'Variasi', 'Qty', or 10 lines after
+                let lines = desc.substring(start).split(/\r?\n/);
+                let endIdx = lines.length;
+                for (let i = 1; i < lines.length; i++) {
+                    if (/^Variasi/i.test(lines[i]) || /^Qty/i.test(lines[i])) {
+                        endIdx = i + 2; // include 1-2 lines after
+                        break;
+                    }
+                }
+                return lines.slice(0, endIdx).join('\n');
+            },
+            // Variant dropdown helpers
+            getVariantOptions(item, idx, sIdx) {
+                if (!this.shipments || !this.shipments[sIdx] || !this.shipments[sIdx].items) return [];
+                // Return all variants not already selected in this shipment
+                let selectedIds = [];
+                this.shipments[sIdx].items.forEach((it, i) => {
+                    if (i !== idx && it.variant_id) selectedIds.push(String(it.variant_id));
+                });
+                let options = [];
+                this.products.forEach(product => {
+                    product.variants.forEach(variant => {
+                        if (!selectedIds.includes(String(variant.id))) {
+                            options.push({
+                                id: variant.id,
+                                sku: variant.sku,
+                                name: product.name,
+                                attributes: (variant.attributeValues || []).map(a => a.value).join(', '),
+                                image_url: product.image_url,
+                                product_id: product.id
+                            });
+                        }
+                    });
+                });
+                // Filter by search
+                if (item && item.search) {
+                    return options.filter(opt =>
+                        opt.sku.toLowerCase().includes(item.search.toLowerCase()) ||
+                        opt.name.toLowerCase().includes(item.search.toLowerCase())
+                    );
+                }
+                return options;
+            },
+            selectVariant(option, idx, sIdx) {
+                const shipment = this.shipments[sIdx];
+                const item = shipment.items[idx];
+                item.variant_id = String(option.id);
+                item.search = option.sku + ' - ' + option.name + (option.attributes ? ' (' + option.attributes + ')' : '');
+                item.dropdownOpen = false;
+                item.image_url = option.image_url;
+            },
             handlePdfUpload(event) {
                 const file = event.target.files[0];
                 if (file) {
                     this.pdfUrl = URL.createObjectURL(file);
-                    // Send to backend for parsing
                     const formData = new FormData();
                     formData.append('shippingPdf', file);
                     fetch('{{ route('transactions.parse-pdf') }}', {
@@ -77,15 +132,60 @@
                     })
                     .then(res => res.json())
                     .then(data => {
-                        this.shippingNumber = data.shipping_number || '';
-                        this.description = data.description || '';
-                        this.items = data.items || [];
-                        if (data.reseller) {
-                            this.selectedReseller = data.reseller.id;
-                            this.resellerSearch = data.reseller.name;
+                        // data is array of shipments
+                        this.shipments = data.map(shipment => {
+                            // For each item, try to auto-match variant
+                            const items = (shipment.items || []).map(item => {
+                                let matched = null;
+                                this.products.forEach(product => {
+                                    product.variants.forEach(variant => {
+                                        if (
+                                            variant.sku && variant.sku.toLowerCase() === item.sku.toLowerCase() &&
+                                            (!item.variation || (variant.attributeValues && variant.attributeValues.map(a => a.value).join(',').toLowerCase().includes(item.variation.toLowerCase())))
+                                        ) {
+                                            matched = {
+                                                variant_id: variant.id,
+                                                search: variant.sku + ' - ' + product.name + (variant.attributeValues && variant.attributeValues.length ? ' (' + variant.attributeValues.map(a => a.value).join(', ') + ')' : ''),
+                                                image_url: product.image_url,
+                                                quantity: item.qty || 1,
+                                                dropdownOpen: false
+                                            };
+                                        }
+                                    });
+                                });
+                                return {
+                                    ...item,
+                                    variant_id: matched ? matched.variant_id : '',
+                                    search: matched ? matched.search : '',
+                                    image_url: matched ? matched.image_url : '',
+                                    quantity: item.qty || 1,
+                                    dropdownOpen: false
+                                };
+                            });
+                            return {
+                                ...shipment,
+                                items: items
+                            };
+                        });
+                        // Auto-select reseller if all shipments have the same reseller
+                        if (data.length && data[0].reseller) {
+                            this.selectedReseller = data[0].reseller.id;
+                            this.resellerSearch = data[0].reseller.name;
                         }
                     });
                 }
+            },
+            // For form submission
+            submitForm() {
+                // You can customize this to send all shipments/items as needed
+                // For now, just submit as JSON
+                const payload = {
+                    shipments: this.shipments,
+                    reseller_id: this.selectedReseller
+                };
+                // You can use fetch/ajax or set hidden input and submit
+                // For demo, just log
+                console.log(payload);
             }
         }
     }
@@ -93,8 +193,8 @@
     <div class="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-7xl mx-auto">
         <div class="flex flex-col lg:flex-row gap-8" x-data="transactionForm()">
             <!-- Left: Form -->
-            <div class="w-full lg:w-1/2">
-                <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-8">
+            <div class="w-full lg:w-3/4">
+                <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-8">
                     <!-- Page header -->
                     <div class="mb-8">
                         <h1 class="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">
@@ -102,7 +202,7 @@
                         </h1>
                     </div>
                     <!-- Form -->
-                    <form action="{{ route('transactions.store') }}" method="POST" class="space-y-6" enctype="multipart/form-data">
+                    <form @submit.prevent="submitForm" class="space-y-6" enctype="multipart/form-data">
                         @csrf
                         <!-- PDF Upload -->
                         <div class="mb-6">
@@ -176,99 +276,80 @@
                             @enderror
                         </div>
                         @endif
-                        <!-- Shipping Number -->
-                        <div>
-                            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300" for="shipping_number">
-                                {{ __('common.transaction.shipping_number') }} <span class="text-red-500">*</span>
-                            </label>
-                            <input id="shipping_number" name="shipping_number" class="form-input w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" type="text" x-model="shippingNumber" required />
-                            @error('shipping_number')
-                            <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <!-- Description -->
-                        <div>
-                            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300" for="description">
-                                {{ __('common.transaction.description') }} <span class="text-red-500">*</span>
-                            </label>
-                            <textarea id="description" name="description" class="form-textarea w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" rows="4" x-model="description" required></textarea>
-                            @error('description')
-                            <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <!-- Items -->
-                        <div x-data="transactionItems()" x-init="init()">
-                            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                                {{ __('common.transaction.items') }} <span class="text-red-500">*</span>
-                            </label>
-
-                            <template x-for="(item, index) in items" :key="index">
-                                <div class="flex items-center gap-3 p-3 mb-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700" x-data="{ dropdownOpen: false }" @click.away="dropdownOpen = false">
-                                    <div class="flex-1">
-                                        <div class="relative flex items-center gap-2">
-                                            <img :src="item.image_url" alt="" class="w-10 h-10 object-cover rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700" x-show="item.variant_id && item.image_url">
-                                            <input
-                                                type="text"
-                                                class="form-input w-full cursor-pointer dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
-                                                placeholder="{{ __('common.transaction.select_product') }}"
-                                                x-model="item.search"
-                                                @focus="setTimeout(() => dropdownOpen = true, 50)"
-                                                @click="setTimeout(() => dropdownOpen = true, 50)"
-                                                :readonly="!!item.variant_id"
-                                                autocomplete="off"
-                                            />
-                                            <button type="button" x-show="item.variant_id" @click.prevent.stop="clearVariant(index)" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
-                                                <i class="fa-solid fa-xmark"></i>
-                                            </button>
-                                            <div
-                                                x-show="dropdownOpen && !item.variant_id"
-                                                @click.away="dropdownOpen = false"
-                                                class="absolute z-30 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto"
-                                                style="top: 100%; left: 0;"
-                                            >
-                                                <template x-for="option in filterOptions(index)" :key="option.id">
-                                                    <div
-                                                        class="px-4 py-2 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center gap-3"
-                                                        @click="selectVariant(index, option)"
-                                                    >
-                                                        <img :src="option.image_url" alt="" class="w-10 h-10 object-cover rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700" x-show="option.image_url">
-                                                        <div class="flex flex-col">
-                                                            <span class="font-medium dark:text-gray-200" x-text="option.sku"></span>
-                                                            <span class="text-gray-400 dark:text-gray-500 text-sm" x-text="option.name"></span>
-                                                            <span class="text-gray-500 dark:text-gray-400 text-xs" x-text="option.attributes"></span>
+                        <!-- Table of shipments -->
+                        <div x-show="shipments.length" class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-2">{{ __('common.transaction.items') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(shipment, sIdx) in shipments" :key="shipment.shipping_number">
+                                        <tr>
+                                            <td class="py-2 align-top">
+                                                <!-- Shipping Information -->
+                                                <div class="mb-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+                                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100" x-text="shipment.shipping_number"></p>
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400 mt-1 block" x-text="getProductBlock(shipment.description)"></span>
+                                                </div>
+                                                <div class="space-y-3">
+                                                    <template x-for="(item, idx) in shipment.items || []" :key="idx">
+                                                        <div class="relative border p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                                            <div class="flex justify-between items-start mb-2">
+                                                                <span class="text-xs text-gray-500" x-text="'Item ' + (idx + 1)"></span>
+                                                                <button type="button" @click.prevent.stop="shipment.items.splice(idx, 1)" class="text-red-500 hover:text-red-600">
+                                                                    <i class="fa-solid fa-trash-alt"></i>
+                                                                </button>
+                                                            </div>
+                                                            <div class="flex flex-row gap-3 w-full">
+                                                                <div class="relative flex items-center gap-2 w-3/4 mt-5">
+                                                                    <img :src="item.image_url" alt="" class="w-10 h-10 object-cover rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700" x-show="item.variant_id && item.image_url">
+                                                                    <input
+                                                                        type="text"
+                                                                        class="form-input w-full cursor-pointer dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+                                                                        placeholder="{{ __('common.transaction.select_product') }}"
+                                                                        x-model="item.search"
+                                                                        @focus="setTimeout(() => item.dropdownOpen = true, 50)"
+                                                                        @input="setTimeout(() => item.dropdownOpen = true, 50)"
+                                                                        :readonly="!!item.variant_id"
+                                                                        autocomplete="off"
+                                                                    />
+                                                                    <button type="button" x-show="item.variant_id" @click.prevent.stop="item.variant_id = ''; item.search = ''; item.image_url = ''; item.dropdownOpen = false;" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+                                                                        <i class="fa-solid fa-xmark"></i>
+                                                                    </button>
+                                                                </div>
+                                                                <div class="w-1/4">
+                                                                    <label class="block text-xs text-gray-500 mb-1">Quantity</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        class="form-input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+                                                                        x-model="item.quantity"
+                                                                        min="1"
+                                                                    />
+                                                                </div>
+                                                                <input type="hidden" :name="'shipments['+sIdx+'][items]['+idx+'][variant_id]'" :value="item.variant_id" />
+                                                                <input type="hidden" :name="'shipments['+sIdx+'][items]['+idx+'][quantity]'" :value="item.quantity" />
+                                                            </div>
                                                         </div>
+                                                    </template>
+                                                    <!-- Add Item Button -->
+                                                    <div class="mt-4">
+                                                        <button
+                                                            type="button"
+                                                            @click.prevent="if (!shipment.items) shipment.items = []; shipment.items.push({ variant_id: '', quantity: 1, search: '', dropdownOpen: false })"
+                                                            class="w-full py-2 px-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-indigo-500 dark:hover:border-indigo-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-2"
+                                                        >
+                                                            <i class="fa-solid fa-plus"></i>
+                                                            <span>Add Product</span>
+                                                        </button>
                                                     </div>
-                                                </template>
-                                                <div x-show="filterOptions(index).length === 0" class="px-4 py-2 text-gray-400 dark:text-gray-500 text-sm">No results</div>
-                                            </div>
-                                        </div>
-                                        <input type="hidden" :name="'items[' + index + '][variant_id]'" :value="item.variant_id" />
-                                    </div>
-                                    <div class="w-32">
-                                        <input type="number" :name="'items[' + index + '][quantity]'" class="form-input w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" placeholder="Qty" min="1" required x-model="items[index].quantity" value="1"
-                                            @keydown="
-                                                if(['e','E','-','+','.'].includes($event.key)) $event.preventDefault();
-                                            "
-                                            @input="
-                                                if ($event.target.value < 1) $event.target.value = 1;
-                                                items[index].quantity = $event.target.value;
-                                            "
-                                        />
-                                    </div>
-                                    <button type="button" @click="removeItem(index)" class="p-2 bg-red-500 hover:bg-red-600 dark:bg-gray-600 dark:hover:bg-gray-500 text-white rounded-lg cursor-pointer">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </div>
-                            </template>
-
-                            <button type="button" @click="addItem()" class="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-gray-600 dark:hover:bg-gray-500 text-white rounded-lg font-semibold flex items-center gap-2 shadow-sm">
-                                <i class="fa-solid fa-plus"></i>
-                                <span>{{ __('common.transaction.add_item') }}</span>
-                            </button>
-
-                            @error('items')
-                            <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
-                            @enderror
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
                         </div>
                         <!-- Form actions -->
                         <div class="flex items-center justify-end gap-2">
@@ -283,7 +364,7 @@
                 </div>
             </div>
             <!-- Right: PDF Preview -->
-            <div class="w-full lg:w-1/2 flex items-start justify-center">
+            <div class="w-full lg:w-1/4 flex items-start justify-center">
                 <template x-if="pdfUrl">
                     <div class="w-full bg-white dark:bg-gray-800 rounded-xl shadow p-4">
                         <embed :src="pdfUrl" type="application/pdf" class="rounded border border-gray-200 dark:border-gray-700" width="100%" height="600px" />

@@ -192,112 +192,198 @@ class TransactionController extends Controller
         // Extract text from the PDF (no OCR)
         $text = \Spatie\PdfToText\Pdf::getText($inputPath);
 
-        // Only use the first page
+        // Pisahkan berdasarkan halaman
         $pages = preg_split('/\f/', $text);
-        $firstPageText = $pages[0];
+        $allText = implode("\n", $pages);
 
-        // Extract shipping number, recipient and sender name
-        $shippingNumber = null;
-        $recipient = null;
-        $senderName = null;
+        // Pisahkan blok-blok berdasarkan No. Resi/Resi
+        $blocks = preg_split('/(?=No\.\s*Resi:|Resi:)/i', $allText);
 
-        if (preg_match('/Resi:\s*([A-Z0-9]+)/i', $firstPageText, $m)) {
-            $shippingNumber = $m[1];
-        }
+        $shipments = [];
 
-        // First try to find recipient and sender in the same line
-        if (preg_match('/Penerima:([^\n]+)/i', $firstPageText, $m)) {
-            $raw = trim($m[1]);
-            if (strpos($raw, 'Pengirim:') !== false) {
-                $parts = explode('Pengirim:', $raw);
-                $recipient = trim($parts[0]);
-                $senderName = trim($parts[1]);
+        foreach ($blocks as $block) {
+            if (!trim($block)) continue;
+
+            // Ambil nomor resi
+            if (preg_match('/Resi:\s*([A-Z0-9]+)/i', $block, $m)) {
+                $shippingNumber = $m[1];
+            } elseif (preg_match('/No\.\s*Resi:\s*([A-Z0-9]+)/i', $block, $m)) {
+                $shippingNumber = $m[1];
             } else {
-                $recipient = $raw;
+                continue; // skip jika tidak ada nomor resi
             }
-        }
 
-        // If sender not found yet, try to find it separately
-        if (!$senderName && preg_match('/Pengirim:([^\n]+)/i', $firstPageText, $m)) {
-            $senderName = trim($m[1]);
-        }
+            // Jika sudah ada shipment dengan nomor resi ini, gunakan referensinya
+            if (!isset($shipments[$shippingNumber])) {
+                $shipments[$shippingNumber] = [
+                    'shipping_number' => $shippingNumber,
+                    'recipient' => null,
+                    'sender' => null,
+                    'items' => [],
+                    'description' => $block,
+                    'reseller' => null,
+                ];
+            } else {
+                // Gabungkan deskripsi jika multi halaman
+                $shipments[$shippingNumber]['description'] .= "\n" . $block;
+            }
 
-        // Find matching reseller by name
-        $reseller = null;
-        if ($senderName) {
-            $reseller = User::whereHas('role', function($query) {
-                $query->where('name', 'reseller');
-            })->where('name', 'like', '%' . $senderName . '%')->first();
-        }
-
-        // Extract items/products (multi-line block parsing, improved for multi-line product names)
-        $items = [];
-        $lines = preg_split('/\r\n|\r|\n/', $firstPageText);
-
-        for ($i = 0; $i < count($lines); $i++) {
-            if (stripos($lines[$i], 'Nama Produk') !== false) {
-                $productNameLines = [];
-                $sku = '';
-                $variation = '';
-                $qty = 1;
-                $foundSku = false;
-
-                // Collect all lines after 'Nama Produk' up to 'Variasi' or 'Qty' or until SKU is found
-                for ($j = $i + 1; $j < min($i + 12, count($lines)); $j++) {
-                    if (stripos($lines[$j], 'Variasi') !== false || stripos($lines[$j], 'Qty') !== false) {
-                        break;
-                    }
-                    // SKU line
-                    if (preg_match('/SBR-\d+|BDMSBR|GUNUNG|GNG-\d+/i', $lines[$j], $m)) {
-                        $sku = trim($m[0]);
-                        $foundSku = true;
-                        // Remove SKU and '|' from the line, add the rest to product name
-                        $lineWithoutSku = trim(str_replace([$sku, '|'], '', $lines[$j]));
-                        if ($lineWithoutSku !== '') {
-                            $productNameLines[] = $lineWithoutSku;
-                        }
-                    } else {
-                        // Collect all lines as part of the product name
-                        $productNameLines[] = trim($lines[$j]);
-                    }
+            // Penerima & Pengirim
+            $recipient = null;
+            $senderName = null;
+            if (preg_match('/Penerima:([^\n]+)/i', $block, $m)) {
+                $raw = trim($m[1]);
+                if (strpos($raw, 'Pengirim:') !== false) {
+                    $parts = explode('Pengirim:', $raw);
+                    $recipient = trim($parts[0]);
+                    $senderName = trim($parts[1]);
+                } else {
+                    $recipient = $raw;
                 }
+            }
+            if (!$senderName && preg_match('/Pengirim:([^\n]+)/i', $block, $m)) {
+                $senderName = trim($m[1]);
+            }
 
-                // Now, look for variation/qty after 'Variasi'
-                for ($j = $i + 1; $j < min($i + 12, count($lines)); $j++) {
-                    if (stripos($lines[$j], 'Variasi') !== false && isset($lines[$j + 1])) {
-                        $variationLine = trim($lines[$j + 1]);
-                        if (preg_match('/(.+),(\d+)\s+(\d+)/', $variationLine, $vm)) {
-                            $variation = trim($vm[1]) . ',' . trim($vm[2]);
-                            $qty = (int) $vm[3];
-                        }
-                    }
-                }
+            // Set recipient/sender jika belum ada
+            if (!$shipments[$shippingNumber]['recipient'] && $recipient) {
+                $shipments[$shippingNumber]['recipient'] = $recipient;
+            }
+            if (!$shipments[$shippingNumber]['sender'] && $senderName) {
+                $shipments[$shippingNumber]['sender'] = $senderName;
+            }
 
-                $productName = trim(implode(' ', $productNameLines));
-
-                if ($sku && $productName) {
-                    $items[] = [
-                        'product' => $productName,
-                        'sku' => $sku,
-                        'variation' => $variation,
-                        'qty' => $qty,
+            // Cari reseller jika belum ada
+            if (!$shipments[$shippingNumber]['reseller'] && $senderName) {
+                $reseller = \App\Models\User::whereHas('role', function($query) {
+                    $query->where('name', 'reseller');
+                })->where('name', 'like', '%' . $senderName . '%')->first();
+                if ($reseller) {
+                    $shipments[$shippingNumber]['reseller'] = [
+                        'id' => $reseller->id,
+                        'name' => $reseller->name,
+                        'email' => $reseller->email,
+                        'profile_photo_url' => str_replace('\\', '/', $reseller->profile_photo_url)
                     ];
                 }
             }
+
+            // Produk (gunakan logika multi-line seperti sebelumnya)
+            $lines = preg_split('/\r\n|\r|\n/', $block);
+            for ($i = 0; $i < count($lines); $i++) {
+                $line = trim($lines[$i]);
+                // --- NEW: SKU before Nama Produk ---
+                if (stripos($line, 'SKU') === 0 && isset($lines[$i + 1]) && preg_match('/(BDMSBR|GUNUNG|GNG-\d+)/i', $lines[$i + 1], $mSku)) {
+                    $sku = trim($mSku[1]);
+                    $productNameLines = [];
+                    $variation = '';
+                    $qty = 1;
+                    $foundProduct = false;
+                    $foundVariation = false;
+                    $foundQty = false;
+
+                    // Scan ke depan untuk Nama Produk, Variasi, Qty
+                    for ($j = $i + 2; $j < min($i + 20, count($lines)); $j++) {
+                        $nextLine = trim($lines[$j]);
+                        if ($nextLine === '') continue;
+
+                        if (!$foundProduct && stripos($nextLine, 'Nama Produk') === 0) {
+                            // Kumpulkan nama produk
+                            for ($k = $j + 1; $k < min($j + 10, count($lines)); $k++) {
+                                $prodLine = trim($lines[$k]);
+                                if ($prodLine === '' || stripos($prodLine, 'Variasi') === 0 || stripos($prodLine, 'Qty') === 0) break;
+                                $productNameLines[] = $prodLine;
+                            }
+                            $foundProduct = true;
+                            continue;
+                        }
+                        if (!$foundVariation && stripos($nextLine, 'Variasi') === 0 && isset($lines[$j + 1])) {
+                            $variation = trim($lines[$j + 1]);
+                            $foundVariation = true;
+                            continue;
+                        }
+                        if (!$foundQty && stripos($nextLine, 'Qty') === 0 && isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
+                            $qty = (int) trim($lines[$j + 1]);
+                            $foundQty = true;
+                            continue;
+                        }
+                    }
+                    $productName = trim(implode(' ', $productNameLines));
+                    if ($sku && $productName) {
+                        $shipments[$shippingNumber]['items'][] = [
+                            'product' => $productName,
+                            'sku' => $sku,
+                            'variation' => $variation,
+                            'qty' => $qty,
+                        ];
+                    }
+                }
+
+                // --- Tetap jalankan logika lama untuk Nama Produk -> SKU ---
+                if (stripos($line, 'Nama Produk') === 0) {
+                    $productNameLines = [];
+                    $sku = '';
+                    $variation = '';
+                    $qty = 1;
+                    $foundSku = false;
+                    $foundVariation = false;
+                    $foundQty = false;
+
+                    // Scan hingga 20 baris ke depan
+                    for ($j = $i + 1; $j < min($i + 20, count($lines)); $j++) {
+                        $subLine = trim($lines[$j]);
+                        if ($subLine === '') continue;
+
+                        // Jika menemukan baris SKU, ambil dari baris berikutnya atau baris itu sendiri
+                        if (!$foundSku && stripos($subLine, 'SKU') === 0) {
+                            if (isset($lines[$j + 1]) && preg_match('/(BDMSBR|GUNUNG|GNG-\d+)/i', $lines[$j + 1], $m)) {
+                                $sku = trim($m[1]);
+                                $foundSku = true;
+                            }
+                            continue;
+                        }
+                        if (!$foundSku && preg_match('/(BDMSBR|GUNUNG|GNG-\d+)/i', $subLine, $m)) {
+                            $sku = trim($m[1]);
+                            $foundSku = true;
+                        }
+                        if (!$foundVariation && stripos($subLine, 'Variasi') === 0) {
+                            if (isset($lines[$j + 1])) {
+                                $variation = trim($lines[$j + 1]);
+                                $foundVariation = true;
+                            }
+                            continue;
+                        }
+                        if (!$foundQty && stripos($subLine, 'Qty') === 0) {
+                            if (isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
+                                $qty = (int) trim($lines[$j + 1]);
+                                $foundQty = true;
+                            }
+                            continue;
+                        }
+                        if (
+                            stripos($subLine, 'SKU') !== 0 &&
+                            stripos($subLine, 'Variasi') !== 0 &&
+                            stripos($subLine, 'Qty') !== 0
+                        ) {
+                            $productNameLines[] = $subLine;
+                        }
+                    }
+                    $productName = trim(implode(' ', $productNameLines));
+                    if ($sku && $productName) {
+                        $shipments[$shippingNumber]['items'][] = [
+                            'product' => $productName,
+                            'sku' => $sku,
+                            'variation' => $variation,
+                            'qty' => $qty,
+                        ];
+                    }
+                }
+            }
         }
 
-        return response()->json([
-            'shipping_number' => $shippingNumber,
-            'description' => $firstPageText,
-            'items' => $items,
-            'recipient' => $recipient,
-            'sender' => $senderName,
-            'reseller' => $reseller ? [
-                'id' => $reseller->id,
-                'name' => $reseller->name,
-                'email' => $reseller->email,
-                'profile_photo_url' => str_replace('\\', '/', $reseller->profile_photo_url)
-            ] : null
-        ]);
+        // Ubah ke array numerik
+        $shipments = array_values($shipments);
+
+        return response()->json($shipments);
     }
 }
