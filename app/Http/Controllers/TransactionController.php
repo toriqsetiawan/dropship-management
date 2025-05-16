@@ -57,6 +57,7 @@ class TransactionController extends Controller
             'shipments.*.items' => 'required|array|min:1',
             'shipments.*.items.*.variant_id' => 'required|exists:product_variants,id',
             'shipments.*.items.*.quantity' => 'required|integer|min:1',
+            'shipping_pdf_path' => 'required|string',
         ];
         if (is_distributor_or_admin($user)) {
             $rules['user_id'] = 'required|exists:users,id';
@@ -71,15 +72,16 @@ class TransactionController extends Controller
                 'total_paid' => 0,
                 'total_price' => 0,
                 'description' => $shipment['description'],
+                'shipping_pdf_path' => $validated['shipping_pdf_path'],
             ]);
             foreach ($shipment['items'] as $item) {
-                $variant = ProductVariant::findOrFail($item['variant_id']);
+                $variant = ProductVariant::with('product')->findOrFail($item['variant_id']);
                 $transaction->items()->create([
                     'variant_id' => $item['variant_id'],
                     'quantity' => $item['quantity'],
-                    'factory_price' => $variant->factory_price,
-                    'distributor_price' => $variant->distributor_price,
-                    'reseller_price' => $variant->reseller_price,
+                    'factory_price' => $variant->product->factory_price,
+                    'distributor_price' => $variant->product->distributor_price,
+                    'reseller_price' => $variant->product->reseller_price,
                     'retail_price' => $variant->retail_price,
                 ]);
             }
@@ -160,9 +162,9 @@ class TransactionController extends Controller
             $transaction->items()->create([
                 'variant_id' => $item['variant_id'],
                 'quantity' => $item['quantity'],
-                'factory_price' => $variant->factory_price,
-                'distributor_price' => $variant->distributor_price,
-                'reseller_price' => $variant->reseller_price,
+                'factory_price' => $variant->product->factory_price,
+                'distributor_price' => $variant->product->distributor_price,
+                'reseller_price' => $variant->product->reseller_price,
                 'retail_price' => $variant->retail_price,
             ]);
         }
@@ -429,6 +431,9 @@ class TransactionController extends Controller
         // Ubah ke array numerik
         $shipments = array_values($shipments);
 
-        return response()->json($shipments);
+        return response()->json([
+            'shipments' => $shipments,
+            'pdf_path' => $path // Add PDF path to response
+        ]);
     }
 }

@@ -11,6 +11,7 @@
             errors: {},
             successMessage: '',
             loading: false,
+            shippingPdfPath: null,
             // Extract only the product block from description
             getProductBlock(desc) {
                 if (!desc) return '';
@@ -80,8 +81,10 @@
                     })
                     .then(res => res.json())
                     .then(data => {
+                        // Store the PDF path
+                        this.shippingPdfPath = data.pdf_path;
                         // data is array of shipments
-                        this.shipments = data.map(shipment => {
+                        this.shipments = data.shipments.map(shipment => {
                             // For each item, gunakan data dari backend jika variant_id sudah ada
                             const items = (shipment.items || []).map(item => {
                                 let search = '';
@@ -130,8 +133,10 @@
                 try {
                     const payload = {
                         shipments: this.shipments,
-                        reseller_id: this.selectedReseller
+                        user_id: this.selectedReseller,
+                        shipping_pdf_path: this.shippingPdfPath
                     };
+                    console.log('Submitting payload:', payload);
                     const res = await fetch('{{ route('transactions.store') }}', {
                         method: 'POST',
                         headers: {
@@ -145,14 +150,20 @@
                     if (!res.ok) {
                         if (data.errors) {
                             this.errors = data.errors;
+                            console.log('Validation errors:', data.errors);
                         } else {
                             alert('Terjadi error');
                         }
                     } else {
-                        this.successMessage = 'Data berhasil disimpan!';
-                        // Optionally: reset form, redirect, dsb
+                        // Show success message
+                        this.successMessage = data.message || 'Data berhasil disimpan!';
+                        // Redirect after 1 second
+                        setTimeout(() => {
+                            window.location.href = '{{ route('transactions.index') }}';
+                        }, 1000);
                     }
                 } catch (e) {
+                    console.error('Error:', e);
                     alert('Terjadi error jaringan');
                 }
                 this.loading = false;
@@ -188,60 +199,27 @@
                         </div>
                         <!-- Reseller Selection (for distributor/superadmin) -->
                         @if(is_distributor_or_admin(auth()->user()))
-                        <div class="relative" x-data="{
-                            open: false,
-                            search: $root.resellerSearch || '',
-                            get resellers() { return @js($resellers); },
-                            get filtered() {
-                                if (!this.search) return this.resellers;
-                                return this.resellers.filter(r =>
-                                    r.name.toLowerCase().includes(this.search.toLowerCase()) ||
-                                    r.email.toLowerCase().includes(this.search.toLowerCase())
-                                );
-                            },
-                            select(reseller) {
-                                $root.selectedReseller = reseller.id;
-                                this.search = reseller.name;
-                                this.open = false;
-                            },
-                            selectedName() {
-                                const found = this.resellers.find(r => r.id == $root.selectedReseller);
-                                return found ? found.name : '';
-                            }
-                        }" x-init="$watch('$root.selectedReseller', value => {
-                            if (value) {
-                                this.search = this.selectedName();
-                            }
-                        })">
-                            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300" for="user_id_search">
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300" for="user_id">
                                 {{ __('common.select_reseller') }} <span class="text-red-500">*</span>
                             </label>
-                            <input
-                                id="user_id_search"
-                                type="text"
-                                class="form-input w-full cursor-pointer dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
-                                placeholder="{{ __('common.select_reseller') }}"
-                                x-model="search"
-                                @focus="setTimeout(() => open = true, 50)"
-                                @click="setTimeout(() => open = true, 50)"
-                                :value="selectedName()"
-                                autocomplete="off"
+                            <select
+                                id="user_id"
+                                name="user_id"
+                                x-model="selectedReseller"
+                                class="form-select w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
                                 required
-                            />
-                            <input type="hidden" name="user_id" :value="$root.selectedReseller">
-                            <div x-show="open" @click.away="open = false" class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto">
-                                <template x-for="reseller in filtered" :key="reseller.id">
-                                    <div class="px-4 py-2 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center gap-3" @click="select(reseller)">
-                                        <img :src="reseller.profile_photo_url" alt="" class="w-8 h-8 rounded-full object-cover">
-                                        <div class="flex flex-col">
-                                            <span x-text="reseller.name" class="font-medium dark:text-gray-200"></span>
-                                            <span x-text="reseller.email" class="text-sm text-gray-500 dark:text-gray-400"></span>
-                                        </div>
-                                    </div>
+                                @change="console.log('Selected reseller:', $event.target.value)"
+                            >
+                                <option value="">{{ __('common.select_reseller') }}</option>
+                                <template x-for="reseller in resellers" :key="reseller.id">
+                                    <option :value="reseller.id" x-text="reseller.name"></option>
                                 </template>
-                                <div x-show="filtered.length === 0" class="px-4 py-2 text-gray-400 dark:text-gray-500 text-sm">No results</div>
-                            </div>
+                            </select>
                             <div x-show="errors.user_id" class="text-red-500 text-sm mt-1" x-text="errors.user_id"></div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Selected value: <span x-text="selectedReseller"></span>
+                            </div>
                         </div>
                         @endif
                         <!-- Table of shipments -->
@@ -362,6 +340,12 @@
                     </div>
                 </template>
             </div>
+        </div>
+    </div>
+    <!-- Add success message alert -->
+    <div x-show="successMessage" class="fixed top-4 right-4 z-50">
+        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+            <span class="block sm:inline" x-text="successMessage"></span>
         </div>
     </div>
 </x-app-layout>
