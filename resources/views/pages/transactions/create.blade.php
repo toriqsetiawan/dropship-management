@@ -134,31 +134,31 @@
                     .then(data => {
                         // data is array of shipments
                         this.shipments = data.map(shipment => {
-                            // For each item, try to auto-match variant
+                            // For each item, gunakan data dari backend jika variant_id sudah ada
                             const items = (shipment.items || []).map(item => {
-                                let matched = null;
-                                this.products.forEach(product => {
-                                    product.variants.forEach(variant => {
-                                        if (
-                                            variant.sku && variant.sku.toLowerCase() === item.sku.toLowerCase() &&
-                                            (!item.variation || (variant.attributeValues && variant.attributeValues.map(a => a.value).join(',').toLowerCase().includes(item.variation.toLowerCase())))
-                                        ) {
-                                            matched = {
-                                                variant_id: variant.id,
-                                                search: variant.sku + ' - ' + product.name + (variant.attributeValues && variant.attributeValues.length ? ' (' + variant.attributeValues.map(a => a.value).join(', ') + ')' : ''),
-                                                image_url: product.image_url,
-                                                quantity: item.qty || 1,
-                                                dropdownOpen: false
-                                            };
-                                        }
+                                let search = '';
+                                if (item.variant_id) {
+                                    // Cari product dan variant dari this.products
+                                    let found = null;
+                                    this.products.forEach(product => {
+                                        product.variants.forEach(variant => {
+                                            if (variant.id == item.variant_id) {
+                                                found = {
+                                                    sku: variant.sku,
+                                                    name: product.name,
+                                                    attributes: (variant.attributeValues || []).map(a => a.value).join(', '),
+                                                };
+                                            }
+                                        });
                                     });
-                                });
+                                    if (found) {
+                                        search = found.sku + ' - ' + found.name + (found.attributes ? ' (' + found.attributes + ')' : '');
+                                    }
+                                }
                                 return {
                                     ...item,
-                                    variant_id: matched ? matched.variant_id : '',
-                                    search: matched ? matched.search : '',
-                                    image_url: matched ? matched.image_url : '',
-                                    quantity: item.qty || 1,
+                                    search: search,
+                                    quantity: item.qty || item.quantity || 1,
                                     dropdownOpen: false
                                 };
                             });
@@ -191,9 +191,9 @@
     }
     </script>
     <div class="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-7xl mx-auto">
-        <div class="flex flex-col lg:flex-row gap-8" x-data="transactionForm()">
+        <div class="flex flex-col lg:flex-row gap-8 min-h-screen relative" x-data="transactionForm()">
             <!-- Left: Form -->
-            <div class="w-full lg:w-3/4">
+            <div class="w-full lg:w-2/3 pb-8">
                 <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-8">
                     <!-- Page header -->
                     <div class="mb-8">
@@ -278,78 +278,89 @@
                         @endif
                         <!-- Table of shipments -->
                         <div x-show="shipments.length" class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead>
-                                    <tr>
-                                        <th class="px-4 py-2">{{ __('common.transaction.items') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template x-for="(shipment, sIdx) in shipments" :key="shipment.shipping_number">
-                                        <tr>
-                                            <td class="py-2 align-top">
-                                                <!-- Shipping Information -->
-                                                <div class="mb-4 border-b border-gray-200 dark:border-gray-700 pb-4">
-                                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100" x-text="shipment.shipping_number"></p>
-                                                    <span class="text-xs text-gray-500 dark:text-gray-400 mt-1 block" x-text="getProductBlock(shipment.description)"></span>
+                            <template x-for="(shipment, sIdx) in shipments" :key="shipment.shipping_number">
+                                <div class="py-2 align-top border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-3">
+                                    <!-- Shipping Information -->
+                                    <div class="mb-4">
+                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100" x-text="'#' + (sIdx + 1) + ' ' + shipment.shipping_number"></p>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 mt-1 block" x-text="getProductBlock(shipment.description)"></span>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <template x-for="(item, idx) in shipment.items || []" :key="idx">
+                                            <div class="relative border p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                                <div class="flex justify-between items-start mb-2">
+                                                    <span class="text-xs text-gray-500" x-text="'Item ' + (idx + 1)"></span>
+                                                    <button type="button" @click.prevent.stop="shipment.items.splice(idx, 1)" class="text-red-500 hover:text-red-600">
+                                                        <i class="fa-solid fa-trash-alt"></i>
+                                                    </button>
                                                 </div>
-                                                <div class="space-y-3">
-                                                    <template x-for="(item, idx) in shipment.items || []" :key="idx">
-                                                        <div class="relative border p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                                            <div class="flex justify-between items-start mb-2">
-                                                                <span class="text-xs text-gray-500" x-text="'Item ' + (idx + 1)"></span>
-                                                                <button type="button" @click.prevent.stop="shipment.items.splice(idx, 1)" class="text-red-500 hover:text-red-600">
-                                                                    <i class="fa-solid fa-trash-alt"></i>
-                                                                </button>
-                                                            </div>
-                                                            <div class="flex flex-row gap-3 w-full">
-                                                                <div class="relative flex items-center gap-2 w-3/4 mt-5">
-                                                                    <img :src="item.image_url" alt="" class="w-10 h-10 object-cover rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700" x-show="item.variant_id && item.image_url">
-                                                                    <input
-                                                                        type="text"
-                                                                        class="form-input w-full cursor-pointer dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
-                                                                        placeholder="{{ __('common.transaction.select_product') }}"
-                                                                        x-model="item.search"
-                                                                        @focus="setTimeout(() => item.dropdownOpen = true, 50)"
-                                                                        @input="setTimeout(() => item.dropdownOpen = true, 50)"
-                                                                        :readonly="!!item.variant_id"
-                                                                        autocomplete="off"
-                                                                    />
-                                                                    <button type="button" x-show="item.variant_id" @click.prevent.stop="item.variant_id = ''; item.search = ''; item.image_url = ''; item.dropdownOpen = false;" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
-                                                                        <i class="fa-solid fa-xmark"></i>
-                                                                    </button>
-                                                                </div>
-                                                                <div class="w-1/4">
-                                                                    <label class="block text-xs text-gray-500 mb-1">Quantity</label>
-                                                                    <input
-                                                                        type="number"
-                                                                        class="form-input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
-                                                                        x-model="item.quantity"
-                                                                        min="1"
-                                                                    />
-                                                                </div>
-                                                                <input type="hidden" :name="'shipments['+sIdx+'][items]['+idx+'][variant_id]'" :value="item.variant_id" />
-                                                                <input type="hidden" :name="'shipments['+sIdx+'][items]['+idx+'][quantity]'" :value="item.quantity" />
-                                                            </div>
-                                                        </div>
-                                                    </template>
-                                                    <!-- Add Item Button -->
-                                                    <div class="mt-4">
-                                                        <button
-                                                            type="button"
-                                                            @click.prevent="if (!shipment.items) shipment.items = []; shipment.items.push({ variant_id: '', quantity: 1, search: '', dropdownOpen: false })"
-                                                            class="w-full py-2 px-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-indigo-500 dark:hover:border-indigo-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-2"
-                                                        >
-                                                            <i class="fa-solid fa-plus"></i>
-                                                            <span>Add Product</span>
+                                                <div class="flex flex-row gap-3 w-full">
+                                                    <div class="relative flex items-center gap-2 w-3/4 mt-5">
+                                                        <img :src="item.image_url" alt="" class="w-10 h-10 object-cover rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700" x-show="item.variant_id && item.image_url">
+                                                        <input
+                                                            type="text"
+                                                            class="form-input w-full cursor-pointer dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+                                                            placeholder="{{ __('common.transaction.select_product') }}"
+                                                            x-model="item.search"
+                                                            @focus="setTimeout(() => item.dropdownOpen = true, 50)"
+                                                            @input="setTimeout(() => item.dropdownOpen = true, 50)"
+                                                            :readonly="!!item.variant_id"
+                                                            autocomplete="off"
+                                                        />
+                                                        <button type="button" x-show="item.variant_id" @click.prevent.stop="item.variant_id = ''; item.search = ''; item.image_url = ''; item.dropdownOpen = false;" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+                                                            <i class="fa-solid fa-xmark"></i>
                                                         </button>
+                                                        <!-- DROPDOWN POPUP -->
+                                                        <div
+                                                            x-show="item.dropdownOpen && !item.variant_id"
+                                                            @click.away="item.dropdownOpen = false"
+                                                            class="absolute z-30 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-auto"
+                                                            style="top: 100%; left: 0; max-height: 70vh;"
+                                                        >
+                                                            <template x-for="option in getVariantOptions(item, idx, sIdx)" :key="option.id">
+                                                                <div
+                                                                    class="px-4 py-2 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center gap-3"
+                                                                    @click="selectVariant(option, idx, sIdx)"
+                                                                >
+                                                                    <img :src="option.image_url" alt="" class="w-10 h-10 object-cover rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700" x-show="option.image_url">
+                                                                    <div class="flex flex-col">
+                                                                        <span class="font-medium dark:text-gray-200" x-text="option.sku"></span>
+                                                                        <span class="text-gray-400 dark:text-gray-500 text-sm" x-text="option.name"></span>
+                                                                        <span class="text-gray-500 dark:text-gray-400 text-xs" x-text="option.attributes"></span>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+                                                            <div x-show="getVariantOptions(item, idx, sIdx).length === 0" class="px-4 py-2 text-gray-400 dark:text-gray-500 text-sm">No results</div>
+                                                        </div>
                                                     </div>
+                                                    <div class="w-1/4">
+                                                        <label class="block text-xs text-gray-500 mb-1">Quantity</label>
+                                                        <input
+                                                            type="number"
+                                                            class="form-input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+                                                            x-model="item.quantity"
+                                                            min="1"
+                                                        />
+                                                    </div>
+                                                    <input type="hidden" :name="'shipments['+sIdx+'][items]['+idx+'][variant_id]'" :value="item.variant_id" />
+                                                    <input type="hidden" :name="'shipments['+sIdx+'][items]['+idx+'][quantity]'" :value="item.quantity" />
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
+                                            </div>
+                                        </template>
+                                        <!-- Add Item Button -->
+                                        <div class="mt-4">
+                                            <button
+                                                type="button"
+                                                @click.prevent="if (!shipment.items) shipment.items = []; shipment.items.push({ variant_id: '', quantity: 1, search: '', dropdownOpen: false })"
+                                                class="w-full py-2 px-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-indigo-500 dark:hover:border-indigo-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <i class="fa-solid fa-plus"></i>
+                                                <span>Add Product</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                         <!-- Form actions -->
                         <div class="flex items-center justify-end gap-2">
@@ -364,14 +375,14 @@
                 </div>
             </div>
             <!-- Right: PDF Preview -->
-            <div class="w-full lg:w-1/4 flex items-start justify-center">
+            <div class="w-full lg:w-1/3 lg:sticky lg:top-20 flex items-start justify-center self-start">
                 <template x-if="pdfUrl">
-                    <div class="w-full bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-                        <embed :src="pdfUrl" type="application/pdf" class="rounded border border-gray-200 dark:border-gray-700" width="100%" height="600px" />
+                    <div class="w-full bg-white dark:bg-gray-800 rounded-xl shadow p-4 h-screen">
+                        <embed :src="pdfUrl" type="application/pdf" class="rounded border border-gray-200 dark:border-gray-700 w-full h-full" />
                     </div>
                 </template>
                 <template x-if="!pdfUrl">
-                    <div class="w-full flex items-center justify-center h-[600px] bg-gray-50 dark:bg-gray-700 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg text-gray-400 dark:text-gray-500">
+                    <div class="w-full flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-700 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg text-gray-400 dark:text-gray-500">
                         <span>{{ __('common.transaction.no_pdf_selected') }}</span>
                     </div>
                 </template>
