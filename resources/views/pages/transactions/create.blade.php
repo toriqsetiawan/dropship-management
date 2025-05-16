@@ -1,60 +1,5 @@
 <x-app-layout>
     <script>
-    function transactionItems() {
-        return {
-            items: [],
-            init() {
-
-            },
-            addItem() {
-                const index = this.items.length;
-                this.items.push({ variant_id: '', quantity: 1, search: '' });
-            },
-            removeItem(index) {
-                this.items.splice(index, 1);
-            },
-            getVariantOptions(index) {
-                // Return all variants not already selected in other items
-                const selectedIds = this.items.filter((it, idx) => idx !== index).map(it => it.variant_id);
-                let options = [];
-                this.products.forEach(product => {
-                    product.variants.forEach(variant => {
-                        if (!selectedIds.includes(String(variant.id))) {
-                            options.push({
-                                id: variant.id,
-                                sku: variant.sku,
-                                name: product.name,
-                                attributes: (variant.attributeValues || []).map(a => a.value).join(', '),
-                                image_url: product.image_url,
-                                product_id: product.id
-                            });
-                        }
-                    });
-                });
-                return options;
-            },
-            filterOptions(index) {
-                const search = this.items[index].search.toLowerCase();
-                return this.getVariantOptions(index).filter(opt =>
-                    opt.sku.toLowerCase().includes(search) ||
-                    opt.name.toLowerCase().includes(search)
-                );
-            },
-            selectVariant(index, option) {
-                this.items[index].variant_id = String(option.id);
-                this.items[index].search = option.sku + ' - ' + option.name + (option.attributes ? ' (' + option.attributes + ')' : '');
-                this.items[index].dropdownOpen = false;
-                this.items[index].image_url = option.image_url;
-            },
-            clearVariant(index) {
-                this.items[index].variant_id = '';
-                this.items[index].search = '';
-                this.items[index].image_url = '';
-            },
-            products: @json($products),
-        }
-    }
-
     function transactionForm() {
         return {
             pdfUrl: null,
@@ -63,6 +8,9 @@
             resellers: @json($resellers),
             selectedReseller: null,
             resellerSearch: '',
+            errors: {},
+            successMessage: '',
+            loading: false,
             // Extract only the product block from description
             getProductBlock(desc) {
                 if (!desc) return '';
@@ -175,17 +123,39 @@
                     });
                 }
             },
-            // For form submission
-            submitForm() {
-                // You can customize this to send all shipments/items as needed
-                // For now, just submit as JSON
-                const payload = {
-                    shipments: this.shipments,
-                    reseller_id: this.selectedReseller
-                };
-                // You can use fetch/ajax or set hidden input and submit
-                // For demo, just log
-                console.log(payload);
+            async submitForm() {
+                this.errors = {};
+                this.successMessage = '';
+                this.loading = true;
+                try {
+                    const payload = {
+                        shipments: this.shipments,
+                        reseller_id: this.selectedReseller
+                    };
+                    const res = await fetch('{{ route('transactions.store') }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        if (data.errors) {
+                            this.errors = data.errors;
+                        } else {
+                            alert('Terjadi error');
+                        }
+                    } else {
+                        this.successMessage = 'Data berhasil disimpan!';
+                        // Optionally: reset form, redirect, dsb
+                    }
+                } catch (e) {
+                    alert('Terjadi error jaringan');
+                }
+                this.loading = false;
             }
         }
     }
@@ -271,9 +241,7 @@
                                 </template>
                                 <div x-show="filtered.length === 0" class="px-4 py-2 text-gray-400 dark:text-gray-500 text-sm">No results</div>
                             </div>
-                            @error('user_id')
-                            <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
-                            @enderror
+                            <div x-show="errors.user_id" class="text-red-500 text-sm mt-1" x-text="errors.user_id"></div>
                         </div>
                         @endif
                         <!-- Table of shipments -->
@@ -367,8 +335,15 @@
                             <a href="{{ route('transactions.index') }}" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-500 text-white rounded-lg cursor-pointer">
                                 {{ __('common.actions.cancel') }}
                             </a>
-                            <button type="submit" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 dark:bg-gray-600 dark:hover:bg-gray-500 text-white rounded-lg cursor-pointer">
-                                {{ __('common.actions.save') }}
+                            <button type="submit"
+                                :disabled="loading"
+                                class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 dark:bg-gray-600 dark:hover:bg-gray-500 text-white rounded-lg cursor-pointer flex items-center gap-2"
+                            >
+                                <svg x-show="loading" class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                                <span>{{ __('common.actions.save') }}</span>
                             </button>
                         </div>
                     </form>

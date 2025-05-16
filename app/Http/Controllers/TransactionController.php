@@ -50,54 +50,46 @@ class TransactionController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-
         $rules = [
-            'shipping_number' => 'required|string|max:255',
-            'description' => 'required|string',
-            'items' => 'required|array|min:1',
-            'items.*.variant_id' => 'required|exists:product_variants,id',
-            'items.*.quantity' => 'required|integer|min:1',
+            'shipments' => 'required|array|min:1',
+            'shipments.*.shipping_number' => 'required|string|max:255',
+            'shipments.*.description' => 'required|string',
+            'shipments.*.items' => 'required|array|min:1',
+            'shipments.*.items.*.variant_id' => 'required|exists:product_variants,id',
+            'shipments.*.items.*.quantity' => 'required|integer|min:1',
         ];
-
         if (is_distributor_or_admin($user)) {
             $rules['user_id'] = 'required|exists:users,id';
         }
-
         $validated = $request->validate($rules);
 
-        $transaction = Transaction::create([
-            'transaction_code' => 'TRX-' . strtoupper(uniqid()),
-            'user_id' => !is_distributor_or_admin($user)
-                ? $request->user_id
-                : $user->id,
-            'shipping_number' => $request->shipping_number,
-            'total_paid' => 0,
-            'total_price' => 0,
-            'description' => $request->description,
-        ]);
-
-        // Create transaction items
-        foreach ($request->items as $item) {
-            $variant = ProductVariant::findOrFail($item['variant_id']);
-            $transaction->items()->create([
-                'variant_id' => $item['variant_id'],
-                'quantity' => $item['quantity'],
-                'factory_price' => $variant->factory_price,
-                'distributor_price' => $variant->distributor_price,
-                'reseller_price' => $variant->reseller_price,
-                'retail_price' => $variant->retail_price,
+        foreach ($validated['shipments'] as $shipment) {
+            $transaction = Transaction::create([
+                'transaction_code' => 'TRX-' . strtoupper(uniqid()),
+                'user_id' => $validated['user_id'] ?? $user->id,
+                'shipping_number' => $shipment['shipping_number'],
+                'total_paid' => 0,
+                'total_price' => 0,
+                'description' => $shipment['description'],
             ]);
+            foreach ($shipment['items'] as $item) {
+                $variant = ProductVariant::findOrFail($item['variant_id']);
+                $transaction->items()->create([
+                    'variant_id' => $item['variant_id'],
+                    'quantity' => $item['quantity'],
+                    'factory_price' => $variant->factory_price,
+                    'distributor_price' => $variant->distributor_price,
+                    'reseller_price' => $variant->reseller_price,
+                    'retail_price' => $variant->retail_price,
+                ]);
+            }
+            $totalPrice = $transaction->items->sum(function ($item) {
+                return $item->quantity * $item->retail_price;
+            });
+            $transaction->update(['total_price' => $totalPrice]);
         }
 
-        // Calculate total price
-        $totalPrice = $transaction->items->sum(function ($item) {
-            return $item->quantity * $item->retail_price;
-        });
-
-        $transaction->update(['total_price' => $totalPrice]);
-
-        return redirect()->route('transactions.index')
-            ->with('success', __('common.transaction.created_successfully'));
+        return response()->json(['success' => true, 'message' => __('common.transaction.created_successfully')]);
     }
 
     public function downloadPdf(Transaction $transaction)
