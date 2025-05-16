@@ -65,6 +65,10 @@ class TransactionController extends Controller
         $validated = $request->validate($rules);
 
         foreach ($validated['shipments'] as $shipment) {
+            // Skip if shipping_number already exists
+            if (Transaction::where('shipping_number', $shipment['shipping_number'])->exists()) {
+                continue;
+            }
             $transaction = Transaction::create([
                 'transaction_code' => 'TRX-' . strtoupper(uniqid()),
                 'user_id' => $validated['user_id'] ?? $user->id,
