@@ -25,7 +25,14 @@ class TransactionController extends Controller
         $transactions = Transaction::with('user')
             ->orderByDesc('created_at')
             ->paginate(15);
-        return view('pages.transactions.index', compact('transactions', 'resellers'));
+        // Hitung jumlah transaksi per status
+        $statusCounts = [
+            'pending' => Transaction::where('status', 'pending')->count(),
+            'processed' => Transaction::where('status', 'processed')->count(),
+            'packed' => Transaction::where('status', 'packed')->count(),
+            'shipped' => Transaction::where('status', 'shipped')->count(),
+        ];
+        return view('pages.transactions.index', compact('transactions', 'resellers', 'statusCounts'));
     }
 
     public function create()
@@ -439,5 +446,35 @@ class TransactionController extends Controller
             'shipments' => $shipments,
             'pdf_path' => $path // Add PDF path to response
         ]);
+    }
+
+    /**
+     * Update the status of one or more transactions
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateStatus(Request $request)
+    {
+        $request->validate([
+            'transaction_ids' => 'required|array',
+            'transaction_ids.*' => 'exists:transactions,id',
+            'status' => 'required|in:pending,processed,packed,shipped'
+        ]);
+
+        try {
+            Transaction::whereIn('id', $request->transaction_ids)
+                ->update(['status' => $request->status]);
+
+            return response()->json([
+                'success' => true,
+                'message' => __('common.status.update_success')
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => __('common.status.update_error')
+            ], 500);
+        }
     }
 }

@@ -83,6 +83,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/transactions/{transaction}/edit', [TransactionController::class, 'edit'])->name('transactions.edit');
     Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
     Route::post('/transactions/parse-pdf', [TransactionController::class, 'parsePdf'])->name('transactions.parse-pdf');
+    Route::post('/transactions/update-status', [TransactionController::class, 'updateStatus'])->name('transactions.update-status');
 
     // Employee Routes
     Route::group(['middleware' => ['role:administrator']], function () {

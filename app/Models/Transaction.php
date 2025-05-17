@@ -27,7 +27,6 @@ class Transaction extends Model
         'tax' => 'decimal:2',
         'total_paid' => 'decimal:2',
         'total_price' => 'decimal:2',
-        'status' => 'integer'
     ];
 
     public function user()

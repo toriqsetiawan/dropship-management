@@ -234,9 +234,6 @@
                                     </template>
                                 </select>
                                 <div x-show="errors.user_id" class="text-red-500 text-sm mt-1" x-text="errors.user_id"></div>
-                                <div class="text-xs text-gray-500 mt-1">
-                                    Selected value: <span x-text="selectedReseller"></span>
-                                </div>
                             </div>
                             @endif
                             <!-- Table of shipments -->
@@ -253,7 +250,7 @@
                                                 <div class="relative border p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                                     <div class="flex justify-between items-start mb-2">
                                                         <span class="text-xs text-gray-500" x-text="'Item ' + (idx + 1)"></span>
-                                                        <button type="button" @click.prevent.stop="shipment.items.splice(idx, 1)" class="text-red-500 hover:text-red-600">
+                                                        <button type="button" @click.prevent.stop="shipment.items.splice(idx, 1)" class="text-red-500 hover:text-red-600 cursor-pointer">
                                                             <i class="fa-solid fa-trash-alt"></i>
                                                         </button>
                                                     </div>
@@ -293,11 +290,11 @@
                                                                         </div>
                                                                     </div>
                                                                 </template>
-                                                                <div x-show="getVariantOptions(item, idx, sIdx).length === 0" class="px-4 py-2 text-gray-400 dark:text-gray-500 text-sm">No results</div>
+                                                                <div x-show="getVariantOptions(item, idx, sIdx).length === 0" class="px-4 py-2 text-gray-400 dark:text-gray-500 text-sm">{{ __('common.no_results') }}</div>
                                                             </div>
                                                         </div>
                                                         <div class="w-1/4">
-                                                            <label class="block text-xs text-gray-500 mb-1">Quantity</label>
+                                                            <label class="block text-xs text-gray-500 mb-1">{{ __('common.transaction.quantity') }}</label>
                                                             <input
                                                                 type="number"
                                                                 class="form-input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
@@ -315,10 +312,10 @@
                                                 <button
                                                     type="button"
                                                     @click.prevent="if (!shipment.items) shipment.items = []; shipment.items.push({ variant_id: '', quantity: 1, search: '', dropdownOpen: false })"
-                                                    class="w-full py-2 px-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-indigo-500 dark:hover:border-indigo-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-2"
+                                                    class="w-full py-2 px-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-indigo-500 dark:hover:border-indigo-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                                                 >
                                                     <i class="fa-solid fa-plus"></i>
-                                                    <span>Add Product</span>
+                                                    <span>{{ __('common.transaction.add_product') }}</span>
                                                 </button>
                                             </div>
                                         </div>
