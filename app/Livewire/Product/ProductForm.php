@@ -336,6 +336,7 @@ class ProductForm extends Component
         }
 
         // Handle variants
+        $inputVariantIds = [];
         foreach ($this->variants as $variantData) {
             $variant = isset($variantData['id'])
                 ? ProductVariant::find($variantData['id'])
@@ -350,6 +351,9 @@ class ProductForm extends Component
             $variant->stock = $variantData['stock'];
             $variant->retail_price = $variantData['retail_price'];
             $variant->save();
+
+            // Tambahkan ke array ID varian yang dipakai
+            $inputVariantIds[] = $variant->id;
 
             // Build attribute value IDs for this variant
             $attributeValueIds = [];
@@ -372,13 +376,12 @@ class ProductForm extends Component
             }
         }
 
-        // Delete removed variants
-        // if ($this->productId) {
-        //     $existingVariantIds = collect($this->variants)->pluck('id')->filter()->toArray();
-        //     ProductVariant::where('product_id', $this->product->id)
-        //         ->whereNotIn('id', $existingVariantIds)
-        //         ->delete();
-        // }
+        // Hapus varian yang tidak ada di input (khusus update)
+        if ($this->productId) {
+            $this->product->variants()
+                ->whereNotIn('id', $inputVariantIds)
+                ->delete();
+        }
 
         if ($this->image) {
             $filename = $this->image->store('products', 'public');

@@ -277,53 +277,146 @@ class TransactionController extends Controller
                     $sku = '';
                     $pdfVariation = '';
                     $qty = 1;
-                    // Jika baris berikutnya label Variasi, ambil beberapa baris setelahnya sebagai blok produk
-                    if (isset($lines[$i + 1]) && stripos($lines[$i + 1], 'Variasi') === 0) {
-                        $productBlock = [];
-                        for ($j = $i + 2; $j < count($lines); $j++) {
-                            $val = trim($lines[$j]);
-                            if ($val === '' || stripos($val, 'Qty') === 0) break;
-                            $productBlock[] = $val;
+                    // Cari SKU di 1-5 baris setelah label SKU (bisa di tengah kalimat)
+                    $skuFound = false;
+                    for ($j = 1; $j <= 5; $j++) {
+                        if (!isset($lines[$i + $j])) break;
+                        $nextLine = $lines[$i + $j];
+                        if (preg_match_all('/([a-zA-Z0-9]+-[a-zA-Z0-9]+-[a-zA-Z0-9]+)/i', $nextLine, $matches)) {
+                            // Ambil SKU pertama yang ditemukan
+                            $sku = strtolower($matches[1][0]);
+                            $skuFound = true;
+                            break;
                         }
-                        $productText = implode(' ', $productBlock);
-                        // Coba deteksi SKU di dalam productText
-                        if (preg_match('/([A-Z]_)?(BDMSBR|GUNUNG|GNG-\d+|AD-\d+)[^,]*,?([0-9]{2})?/i', $productText, $m)) {
-                            $sku = isset($m[2]) ? trim($m[2]) : '';
-                            $pdfVariation = $productText;
-                            // Normalisasi SKU
-                            $sku = preg_replace('/[^A-Z0-9-]/i', '', $sku);
-                        }
-                        // Cari qty setelah blok produk
-                        for ($j = $i + 2 + count($productBlock); $j < min($i + 10, count($lines)); $j++) {
-                            if (stripos($lines[$j], 'Qty') === 0 && isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
-                                $qty = (int) trim($lines[$j + 1]);
-                                break;
+                    }
+                    // Jika tidak ketemu, coba scan blok produk seperti sebelumnya
+                    if (!$skuFound) {
+                        // Jika baris berikutnya label Variasi, ambil beberapa baris setelahnya sebagai blok produk
+                        if (isset($lines[$i + 1]) && stripos($lines[$i + 1], 'Variasi') === 0) {
+                            $productBlock = [];
+                            for ($j = $i + 2; $j < count($lines); $j++) {
+                                $val = trim($lines[$j]);
+                                if ($val === '' || stripos($val, 'Qty') === 0) break;
+                                $productBlock[] = $val;
+                            }
+                            $productText = implode(' ', $productBlock);
+                            if (preg_match_all('/([a-zA-Z0-9]+-[a-zA-Z0-9]+-[a-zA-Z0-9]+)/i', $productText, $matches)) {
+                                $sku = strtolower($matches[1][0]);
+                            }
+                            // Cari qty setelah blok produk
+                            for ($j = $i + 2 + count($productBlock); $j < min($i + 10, count($lines)); $j++) {
+                                if (stripos($lines[$j], 'Qty') === 0 && isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
+                                    $qty = (int) trim($lines[$j + 1]);
+                                    break;
+                                }
                             }
                         }
                     }
-                    // Jika baris berikutnya bukan label Variasi, gunakan logika lama
-                    elseif (isset($lines[$i + 1]) && preg_match('/([A-Z]_)?(BDMSBR|GUNUNG|GNG-\d+|AD-\d+)/i', $lines[$i + 1], $mSku)) {
-                        $sku = isset($mSku[2]) ? trim($mSku[2]) : '';
-                        $pdfVariation = '';
-                        $qty = 1;
-                        // Normalisasi SKU
-                        $sku = preg_replace('/[^A-Z0-9-]/i', '', $sku);
-                        // Cari variasi dan qty seperti sebelumnya
-                        for ($j = $i + 2; $j < min($i + 6, count($lines)); $j++) {
-                            if (stripos($lines[$j], 'Variasi') === 0 && isset($lines[$j + 1])) {
-                                $pdfVariation = trim($lines[$j + 1]);
+                    // Cari di baris variasi
+                    for ($j = $i + 1; $j < min($i + 6, count($lines)); $j++) {
+                        // 1. Cek jika label Variasi di baris
+                        if (stripos($lines[$j], 'Variasi') === 0) {
+                            // Cek di baris yang sama setelah ':'
+                            $afterLabel = trim(substr($lines[$j], strlen('Variasi')));
+                            if ($afterLabel) {
+                                $variationLine = ltrim($afterLabel, ': ');
+                            } elseif (isset($lines[$j + 1])) {
+                                $variationLine = trim($lines[$j + 1]);
+                            } else {
+                                continue;
                             }
-                            if (stripos($lines[$j], 'Qty') === 0 && isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
-                                $qty = (int) trim($lines[$j + 1]);
+                            // Regex fleksibel
+                            if (preg_match('/^(.+?)[,\s]+(\d{2,3})$/i', $variationLine, $matches)) {
+                                $color = strtolower(trim($matches[1]));
+                                $size = trim($matches[2]);
+                            } else {
+                                $parts = array_map('trim', explode(',', $variationLine));
+                                if (count($parts) == 2) {
+                                    $color = strtolower($parts[0]);
+                                    $size = $parts[1];
+                                }
                             }
+                            break;
                         }
                     }
+
                     // Query variant dari DB
                     if ($sku) {
-                        $matchedVariant = $variants->first(function($variant) use ($sku) {
-                            return stripos($variant->sku, $sku) !== false;
+                        // Ambil bagian-bagian dari SKU (sebelum dash pertama)
+                        $skuParts = explode('-', $sku);
+                        $mainSku = strtolower($skuParts[0]);
+
+                        // Inisialisasi color dan size
+                        $color = null;
+                        $size = null;
+
+                        // Normalisasi SKU untuk pencocokan
+                        $normalizedSku = strtolower($mainSku);
+                        // Hapus prefix jika ada (misal A_BDMSBR -> bdmsbr)
+                        $normalizedSku = preg_replace('/^[a-z]_/', '', $normalizedSku);
+                        // Hapus karakter non-alphanumeric
+                        $normalizedSku = preg_replace('/[^a-z0-9]/', '', $normalizedSku);
+
+                        // Cari variant yang cocok dengan SKU utama
+                        $matchedVariants = $variants->filter(function($variant) use ($normalizedSku) {
+                            $variantSku = strtolower($variant->sku);
+                            // Hapus karakter non-alphanumeric dari SKU variant
+                            $variantSku = preg_replace('/[^a-z0-9]/', '', $variantSku);
+                            return stripos($variantSku, $normalizedSku) !== false;
                         });
-                        if ($matchedVariant) {
+
+                        if ((!$color || !$size) && preg_match('/^[a-z0-9]+-([a-z]+)-(\d{2,3})$/i', $sku, $matches)) {
+                            $color = strtolower($matches[1]);
+                            $size = $matches[2];
+                        }
+
+                        // Jika ada warna dan ukuran, coba cari yang paling cocok
+                        if ($color && $size && $matchedVariants->count() > 0) {
+                            // Filter variant yang cocok warna dan ukuran
+                            $colorSizeMatchedVariants = $matchedVariants->filter(function($variant) use ($color, $size) {
+                                $variantValues = $variant->attributeValues->pluck('value')->map('strtolower');
+                                dd($variantValues, $color, $size);
+                                // Cek warna - harus contains match
+                                $hasColor = $variantValues->contains(function($value) use ($color) {
+                                    return strpos($value, $color) !== false || strpos($color, $value) !== false;
+                                });
+
+                                // Cek ukuran - exact match
+                                $hasSize = $variantValues->contains(function($value) use ($size) {
+                                    return $value === $size;
+                                });
+
+                                return $hasColor && $hasSize;
+                            });
+
+                            // Jika ada yang cocok warna dan ukuran, ambil yang pertama
+                            if ($colorSizeMatchedVariants->count() > 0) {
+                                $matchedVariant = $colorSizeMatchedVariants->first();
+                            }
+                        }
+
+                        // Jika tidak ketemu yang cocok warna dan ukuran, coba cari yang cocok warnanya saja
+                        if (!isset($matchedVariant) && $color && $matchedVariants->count() > 0) {
+                            // Filter variant yang cocok warnanya saja
+                            $colorMatchedVariants = $matchedVariants->filter(function($variant) use ($color) {
+                                $variantValues = $variant->attributeValues->pluck('value')->map('strtolower');
+                                return $variantValues->contains(function($value) use ($color) {
+                                    return strpos($value, $color) !== false || strpos($color, $value) !== false;
+                                });
+                            });
+
+                            // Jika ada yang cocok warnanya saja, ambil yang pertama
+                            if ($colorMatchedVariants->count() > 0) {
+                                $matchedVariant = $colorMatchedVariants->first();
+                            }
+                        }
+
+                        // Jika masih tidak ketemu, ambil yang pertama dari semua variant yang cocok SKU
+                        if (!isset($matchedVariant) && $matchedVariants->count() > 0) {
+                            $matchedVariant = $matchedVariants->first();
+                        }
+
+                        if (isset($matchedVariant)) {
                             $shipments[$shippingNumber]['items'][] = [
                                 'variant_id' => $matchedVariant->id,
                                 'sku' => $matchedVariant->sku,
