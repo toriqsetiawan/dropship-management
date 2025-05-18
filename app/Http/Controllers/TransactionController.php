@@ -194,19 +194,13 @@ class TransactionController extends Controller
         $path = $request->file('shippingPdf')->store('shipping_pdfs');
         $inputPath = storage_path('app/' . $path);
 
-        // Extract text from the PDF (no OCR)
         $text = \Spatie\PdfToText\Pdf::getText($inputPath);
-
-        // Pisahkan berdasarkan halaman
         $pages = preg_split('/\f/', $text);
         $allText = implode("\n", $pages);
 
-        // Pisahkan blok-blok berdasarkan No. Resi/Resi
         $blocks = preg_split('/(?=No\.\s*Resi:|Resi:)/i', $allText);
 
         $shipments = [];
-
-        // Ambil semua variant beserta produk dan atribut
         $variants = \App\Models\ProductVariant::with(['product', 'attributeValues'])->get();
 
         foreach ($blocks as $block) {
@@ -218,10 +212,9 @@ class TransactionController extends Controller
             } elseif (preg_match('/No\.\s*Resi:\s*([A-Z0-9]+)/i', $block, $m)) {
                 $shippingNumber = $m[1];
             } else {
-                continue; // skip jika tidak ada nomor resi
+                continue;
             }
 
-            // Jika sudah ada shipment dengan nomor resi ini, gunakan referensinya
             if (!isset($shipments[$shippingNumber])) {
                 $shipments[$shippingNumber] = [
                     'shipping_number' => $shippingNumber,
@@ -232,7 +225,6 @@ class TransactionController extends Controller
                     'reseller' => null,
                 ];
             } else {
-                // Gabungkan deskripsi jika multi halaman
                 $shipments[$shippingNumber]['description'] .= "\n" . $block;
             }
 
@@ -252,8 +244,6 @@ class TransactionController extends Controller
             if (!$senderName && preg_match('/Pengirim:([^\n]+)/i', $block, $m)) {
                 $senderName = trim($m[1]);
             }
-
-            // Set recipient/sender jika belum ada
             if (!$shipments[$shippingNumber]['recipient'] && $recipient) {
                 $shipments[$shippingNumber]['recipient'] = $recipient;
             }
@@ -276,80 +266,63 @@ class TransactionController extends Controller
                 }
             }
 
-            // Parsing item dari PDF
+            // --- PARSING ITEM ---
             $lines = preg_split('/\r\n|\r|\n/', $block);
+            $foundItem = false;
+
+            // 1. Parsing berdasarkan label (SKU, Variasi, Qty) dengan blok produk multi-baris
             for ($i = 0; $i < count($lines); $i++) {
                 $line = trim($lines[$i]);
-                // --- SKU di baris berikutnya setelah 'SKU' ---
-                if (stripos($line, 'SKU') === 0 && isset($lines[$i + 1])) {
-                    $nextLine = trim($lines[$i + 1]);
+                if (stripos($line, 'SKU') === 0) {
                     $sku = '';
                     $pdfVariation = '';
                     $qty = 1;
-
-                    // CASE 1: Baris berikutnya label Variasi, value SKU+variasi di bawahnya
-                    if (preg_match('/Variasi/i', $nextLine) && isset($lines[$i + 2])) {
-                        $skuVarLine = trim($lines[$i + 2]);
-                        // Coba deteksi SKU di awal, sisanya variasi
-                        if (preg_match('/^(BDMSBR|GUNUNG|GNG-\d+)\s+(.+)/i', $skuVarLine, $m)) {
-                            $sku = trim($m[1]);
-                            $pdfVariation = trim($m[2]);
-                        } else {
-                            // fallback: jika tidak ada SKU di awal, anggap seluruhnya variasi
-                            $pdfVariation = $skuVarLine;
+                    // Jika baris berikutnya label Variasi, ambil beberapa baris setelahnya sebagai blok produk
+                    if (isset($lines[$i + 1]) && stripos($lines[$i + 1], 'Variasi') === 0) {
+                        $productBlock = [];
+                        for ($j = $i + 2; $j < count($lines); $j++) {
+                            $val = trim($lines[$j]);
+                            if ($val === '' || stripos($val, 'Qty') === 0) break;
+                            $productBlock[] = $val;
                         }
-                        // Cari qty
-                        for ($j = $i + 3; $j < min($i + 8, count($lines)); $j++) {
-                            if (preg_match('/Qty/i', $lines[$j]) && isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
+                        $productText = implode(' ', $productBlock);
+                        // Coba deteksi SKU di dalam productText
+                        if (preg_match('/([A-Z]_)?(BDMSBR|GUNUNG|GNG-\d+|AD-\d+)[^,]*,?([0-9]{2})?/i', $productText, $m)) {
+                            $sku = isset($m[2]) ? trim($m[2]) : '';
+                            $pdfVariation = $productText;
+                            // Normalisasi SKU
+                            $sku = preg_replace('/[^A-Z0-9-]/i', '', $sku);
+                        }
+                        // Cari qty setelah blok produk
+                        for ($j = $i + 2 + count($productBlock); $j < min($i + 10, count($lines)); $j++) {
+                            if (stripos($lines[$j], 'Qty') === 0 && isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
                                 $qty = (int) trim($lines[$j + 1]);
                                 break;
                             }
                         }
                     }
-                    // CASE 2: Baris berikutnya langsung value SKU
-                    elseif (preg_match('/(BDMSBR|GUNUNG|GNG-\d+)/i', $nextLine, $mSku)) {
-                        $sku = trim($mSku[1]);
+                    // Jika baris berikutnya bukan label Variasi, gunakan logika lama
+                    elseif (isset($lines[$i + 1]) && preg_match('/([A-Z]_)?(BDMSBR|GUNUNG|GNG-\d+|AD-\d+)/i', $lines[$i + 1], $mSku)) {
+                        $sku = isset($mSku[2]) ? trim($mSku[2]) : '';
+                        $pdfVariation = '';
+                        $qty = 1;
+                        // Normalisasi SKU
+                        $sku = preg_replace('/[^A-Z0-9-]/i', '', $sku);
                         // Cari variasi dan qty seperti sebelumnya
-                        for ($j = $i + 2; $j < min($i + 8, count($lines)); $j++) {
-                            $next = trim($lines[$j]);
-                            if (preg_match('/Variasi/i', $next) && isset($lines[$j + 1])) {
+                        for ($j = $i + 2; $j < min($i + 6, count($lines)); $j++) {
+                            if (stripos($lines[$j], 'Variasi') === 0 && isset($lines[$j + 1])) {
                                 $pdfVariation = trim($lines[$j + 1]);
-                                continue;
                             }
-                            if (!$pdfVariation && preg_match('/[a-zA-Z]+,\d+/', $next) && !preg_match('/Qty|Nama Produk|SKU/i', $next)) {
-                                $pdfVariation = $next;
-                                continue;
-                            }
-                            if (preg_match('/Qty/i', $next) && isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
+                            if (stripos($lines[$j], 'Qty') === 0 && isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
                                 $qty = (int) trim($lines[$j + 1]);
-                                continue;
-                            }
-                            if (!$pdfVariation && preg_match('/([a-zA-Z ]+,[0-9]+)\s+(\d+)/', $next, $m2)) {
-                                $pdfVariation = trim($m2[1]);
-                                $qty = (int) $m2[2];
-                                continue;
                             }
                         }
                     }
-
-                    // Query variant dari DB pakai LIKE SKU dan filter variasi jika ada
+                    // Query variant dari DB
                     if ($sku) {
-                        $matchedVariant = $variants->first(function($variant) use ($sku, $pdfVariation) {
-                            if (stripos($variant->sku, $sku) === false) return false;
-                            if ($pdfVariation) {
-                                $pdfVars = array_map('trim', explode(',', strtolower($pdfVariation)));
-                                $attrString = strtolower($variant->attributeValues->pluck('value')->implode(','));
-                                foreach ($pdfVars as $pv) {
-                                    if ($pv && stripos($attrString, $pv) === false) return false;
-                                }
-                            }
-                            return true;
+                        $matchedVariant = $variants->first(function($variant) use ($sku) {
+                            return stripos($variant->sku, $sku) !== false;
                         });
-                        if (!$matchedVariant) {
-                            $matchedVariant = $variants->first(function($variant) use ($sku) {
-                                return stripos($variant->sku, $sku) !== false;
-                            });
-                        }
                         if ($matchedVariant) {
                             $shipments[$shippingNumber]['items'][] = [
                                 'variant_id' => $matchedVariant->id,
@@ -360,58 +333,39 @@ class TransactionController extends Controller
                                 'qty' => $qty ?: 1,
                                 'dropdownOpen' => false,
                             ];
-                        } else {
-                            $shipments[$shippingNumber]['items'][] = [
-                                'variant_id' => '',
-                                'sku' => $sku,
-                                'product' => '',
-                                'variation' => $pdfVariation,
-                                'image_url' => '',
-                                'qty' => $qty ?: 1,
-                                'dropdownOpen' => false,
-                            ];
+                            $foundItem = true;
                         }
                     }
                 }
             }
-            // Loop ulang jika items masih kosong, cari pola di seluruh lines
-            if (empty($shipments[$shippingNumber]['items'])) {
-                foreach ($lines as $idx => $line) {
+
+            // 2. Fallback: regex di seluruh blok jika belum ketemu
+            if (!$foundItem) {
+                foreach ($lines as $i => $line) {
                     $line = trim($line);
-                    // Pola: [size] ... BDMSBR Putih Biru,37
-                    if (preg_match('/(BDMSBR|GUNUNG|GNG-\d+)\s+([a-zA-Z ]+,[0-9]+)/i', $line, $m)) {
-                        $sku = trim($m[1]);
-                        $pdfVariation = trim($m[2]);
+                    // Pola: [SKU] ... [variasi],[size]
+                    if (preg_match('/([A-Z]_)?(BDMSBR|GUNUNG|GNG-\d+|AD-\d+)\s*([a-zA-Z ]*),?(\d{2})?/i', $line, $m)) {
+                        $sku = isset($m[2]) ? trim($m[2]) : '';
+                        $pdfVariation = isset($m[3]) ? trim($m[3]) : '';
+                        $size = isset($m[4]) ? trim($m[4]) : '';
                         $qty = 1;
+                        // Normalisasi SKU
+                        $sku = preg_replace('/[^A-Z0-9-]/i', '', $sku);
                         // Cari qty di baris berikutnya
-                        for ($j = $idx + 1; $j < min($idx + 4, count($lines)); $j++) {
+                        for ($j = $i + 1; $j < min($i + 4, count($lines)); $j++) {
                             if (preg_match('/Qty/i', $lines[$j]) && isset($lines[$j + 1]) && is_numeric(trim($lines[$j + 1]))) {
                                 $qty = (int) trim($lines[$j + 1]);
                                 break;
                             }
-                            // Atau langsung angka di baris berikutnya
                             if (is_numeric(trim($lines[$j]))) {
                                 $qty = (int) trim($lines[$j]);
                                 break;
                             }
                         }
-                        // Query variant dari DB pakai LIKE SKU dan filter variasi jika ada
-                        $matchedVariant = $variants->first(function($variant) use ($sku, $pdfVariation) {
-                            if (stripos($variant->sku, $sku) === false) return false;
-                            if ($pdfVariation) {
-                                $pdfVars = array_map('trim', explode(',', strtolower($pdfVariation)));
-                                $attrString = strtolower($variant->attributeValues->pluck('value')->implode(','));
-                                foreach ($pdfVars as $pv) {
-                                    if ($pv && stripos($attrString, $pv) === false) return false;
-                                }
-                            }
-                            return true;
+                        // Query variant dari DB
+                        $matchedVariant = $variants->first(function($variant) use ($sku) {
+                            return stripos($variant->sku, $sku) !== false;
                         });
-                        if (!$matchedVariant) {
-                            $matchedVariant = $variants->first(function($variant) use ($sku) {
-                                return stripos($variant->sku, $sku) !== false;
-                            });
-                        }
                         if ($matchedVariant) {
                             $shipments[$shippingNumber]['items'][] = [
                                 'variant_id' => $matchedVariant->id,
@@ -422,29 +376,20 @@ class TransactionController extends Controller
                                 'qty' => $qty ?: 1,
                                 'dropdownOpen' => false,
                             ];
-                        } else {
-                            $shipments[$shippingNumber]['items'][] = [
-                                'variant_id' => '',
-                                'sku' => $sku,
-                                'product' => '',
-                                'variation' => $pdfVariation,
-                                'image_url' => '',
-                                'qty' => $qty ?: 1,
-                                'dropdownOpen' => false,
-                            ];
+                            $foundItem = true;
                         }
-                        break; // hanya ambil satu produk per blok
                     }
                 }
             }
+
+            if (!$foundItem) {
+                $shipments[$shippingNumber]['items'] = [];
+            }
         }
-
-        // Ubah ke array numerik
         $shipments = array_values($shipments);
-
         return response()->json([
             'shipments' => $shipments,
-            'pdf_path' => $path // Add PDF path to response
+            'pdf_path' => $path
         ]);
     }
 
