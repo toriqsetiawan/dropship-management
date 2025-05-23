@@ -47,7 +47,7 @@ return [
         'created_at' => 'Dibuat Pada',
         'description' => 'Deskripsi',
         'title' => 'Transaksi',
-        'add_manual' => 'Tambah Transaksi',
+        'add_manual' => 'PDF Transaksi',
         'add_pdf' => 'Tambah Transaksi PDF',
         'see_description' => 'Lihat Deskripsi',
         'no_transactions_found' => 'Tidak ada transaksi ditemukan',

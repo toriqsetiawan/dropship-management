@@ -47,7 +47,7 @@ return [
         'created_at' => 'Created At',
         'description' => 'Description',
         'title' => 'Transaction',
-        'add_manual' => 'Add Transaction',
+        'add_manual' => 'PDF Transaction',
         'add_pdf' => 'Add Transaction PDF',
         'see_description' => 'See Description',
         'no_transactions_found' => 'No transactions found',

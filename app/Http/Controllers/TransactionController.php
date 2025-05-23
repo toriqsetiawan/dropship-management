@@ -375,7 +375,6 @@ class TransactionController extends Controller
                             // Filter variant yang cocok warna dan ukuran
                             $colorSizeMatchedVariants = $matchedVariants->filter(function($variant) use ($color, $size) {
                                 $variantValues = $variant->attributeValues->pluck('value')->map('strtolower');
-                                dd($variantValues, $color, $size);
                                 // Cek warna - harus contains match
                                 $hasColor = $variantValues->contains(function($value) use ($color) {
                                     return strpos($value, $color) !== false || strpos($color, $value) !== false;
@@ -434,13 +433,29 @@ class TransactionController extends Controller
 
             // 2. Fallback: regex di seluruh blok jika belum ketemu
             if (!$foundItem) {
+                // Inisialisasi color dan size agar tidak undefined
+                $color = $color ?? null;
+                $size = $size ?? null;
+
+                // Jika color/size masih null, coba scan seluruh blok untuk pola warna dan ukuran
+                if (!$color || !$size) {
+                    foreach ($lines as $line) {
+                        $line = trim($line);
+                        // Format: "Warna,Ukuran" atau "Warna Ukuran"
+                        if (preg_match('/([a-zA-Z]+)[,\s]+(\d{2,3})/', $line, $matches)) {
+                            $color = $color ?: strtolower($matches[1]);
+                            $size = $size ?: $matches[2];
+                            break;
+                        }
+                    }
+                }
+
                 foreach ($lines as $i => $line) {
                     $line = trim($line);
                     // Pola: [SKU] ... [variasi],[size]
                     if (preg_match('/([A-Z]_)?(BDMSBR|GUNUNG|GNG-\d+|AD-\d+)\s*([a-zA-Z ]*),?(\d{2})?/i', $line, $m)) {
                         $sku = isset($m[2]) ? trim($m[2]) : '';
                         $pdfVariation = isset($m[3]) ? trim($m[3]) : '';
-                        $size = isset($m[4]) ? trim($m[4]) : '';
                         $qty = 1;
                         // Normalisasi SKU
                         $sku = preg_replace('/[^A-Z0-9-]/i', '', $sku);
@@ -456,9 +471,71 @@ class TransactionController extends Controller
                             }
                         }
                         // Query variant dari DB
-                        $matchedVariant = $variants->first(function($variant) use ($sku) {
+                        // Ambil semua kandidat varian yang SKU-nya cocok
+                        $filteredVariants = $variants->filter(function($variant) use ($sku) {
                             return stripos($variant->sku, $sku) !== false;
                         });
+
+                        // 1. Cari yang cocok color dan size
+                        $colorSizeMatched = $filteredVariants->filter(function($variant) use ($color, $size) {
+                            $variantValues = $variant->attributeValues->pluck('value')->map('strtolower');
+
+                            // Pecah color menjadi array kata (split camel case dan spasi)
+                            $colorWords = $color ? preg_split('/(?=[A-Z])|\s+/', ucwords($color)) : $color;
+                            $colorWords = array_filter(array_map('strtolower', $colorWords));
+
+                            $hasColor = false;
+                            foreach ($colorWords as $word) {
+                                if ($variantValues->contains(function($value) use ($word) {
+                                    return strpos($value, $word) !== false || strpos($word, $value) !== false;
+                                })) {
+                                    $hasColor = true;
+                                    break;
+                                }
+                            }
+                            $hasSize = $size ? $variantValues->contains(function($value) use ($size) {
+                                return $value === $size;
+                            }) : false;
+                            return $hasColor && $hasSize;
+                        });
+
+                        if ($colorSizeMatched->count() > 0) {
+                            $matchedVariant = $colorSizeMatched->first();
+                        } else {
+                            // 2. Cari yang cocok color saja
+                            $colorMatched = $filteredVariants->filter(function($variant) use ($color) {
+                                $variantValues = $variant->attributeValues->pluck('value')->map('strtolower');
+                                $colorWords = $color ? preg_split('/(?=[A-Z])|\s+/', ucwords($color)) : [];
+                                $colorWords = array_filter(array_map('strtolower', $colorWords));
+                                $hasColor = false;
+                                foreach ($colorWords as $word) {
+                                    if ($variantValues->contains(function($value) use ($word) {
+                                        return strpos($value, $word) !== false || strpos($word, $value) !== false;
+                                    })) {
+                                        $hasColor = true;
+                                        break;
+                                    }
+                                }
+                                return $hasColor;
+                            });
+                            if ($colorMatched->count() > 0) {
+                                $matchedVariant = $colorMatched->first();
+                            } else {
+                                // 3. Cari yang cocok size saja
+                                $sizeMatched = $filteredVariants->filter(function($variant) use ($size) {
+                                    $variantValues = $variant->attributeValues->pluck('value')->map('strtolower');
+                                    return $size ? $variantValues->contains(function($value) use ($size) {
+                                        return $value === $size;
+                                    }) : false;
+                                });
+                                if ($sizeMatched->count() > 0) {
+                                    $matchedVariant = $sizeMatched->first();
+                                } else {
+                                    // 4. Fallback ke kandidat pertama
+                                    $matchedVariant = $filteredVariants->first();
+                                }
+                            }
+                        }
                         if ($matchedVariant) {
                             $shipments[$shippingNumber]['items'][] = [
                                 'variant_id' => $matchedVariant->id,
