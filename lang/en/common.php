@@ -73,6 +73,8 @@ return [
         'status_shipped' => 'Shipped',
         'update_status' => 'Update Status',
         'select_status' => 'Select Status',
+        'confirm_update_status' => 'Are you sure you want to update the status of selected transactions?',
+        'print_pdf_title' => 'Print PDF',
     ],
     'employees' => 'Employees',
     'attendance' => 'Attendance',

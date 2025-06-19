@@ -1,6 +1,44 @@
 <x-app-layout>
     <div class="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-9xl mx-auto">
-        <div x-data="{ open: false, selected: [], selectAll: false, isBulk: false, statusFilter: 'pending', bulkStatus: '', showStatusModal: false }"
+        <div x-data="{
+            open: false,
+            selected: [],
+            selectAll: false,
+            isBulk: false,
+            statusFilter: 'pending',
+            bulkStatus: '',
+            showStatusModal: false,
+            bulkUpdateStatus() {
+                if (!this.bulkStatus || this.selected.length === 0) {
+                    alert('{{ __('common.status.no_selection') }}');
+                    return;
+                }
+
+                fetch('{{ route('transactions.update-status') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        transaction_ids: this.selected,
+                        status: this.bulkStatus
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || '{{ __('common.status.update_error') }}');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('{{ __('common.status.update_error') }}');
+                });
+            }
+        }"
             x-init="$watch('selectAll', value => { if (value) { selected = @json($transactions->pluck('id')); } else { selected = []; } })">
             <!-- Page header -->
             <div class="sm:flex sm:justify-between sm:items-center mb-8">
@@ -123,15 +161,15 @@
                         </span>
                     </td>
                     <td class="px-2 first:pl-5 last:pr-5 py-3 whitespace-nowrap">
-                        @if (!empty($transaction->shipping_pdf_path))
-                        <button type="button"
-                            class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-600 flex items-center gap-1"
-                            @click.prevent=""
-                            :title="'{{ __('common.transaction.print_pdf') }}'"
-                        >
-                            <i class="fa-solid fa-print"></i>
-                            <span class="hidden md:inline">{{ __('common.transaction.print_pdf') }}</span>
-                        </button>
+                        @if ($transaction->status === 'pending')
+                            <button
+                                class="btn btn-sm btn-primary cursor-pointer"
+                                @click="printPdf('{{ $transaction->shipping_pdf_path }}', '{{ $transaction->id }}')"
+                                title="{{ __('common.transaction.print_pdf_title') }}"
+                            >
+                                <i class="fa-solid fa-print w-4 h-4 inline"></i>
+                                {{ __('common.transaction.print_pdf_title') }}
+                            </button>
                         @endif
                         <button type="button" @click="$dispatch('open-delete-modal', {
                                 itemId: {{ $transaction->id }},
@@ -154,21 +192,8 @@
 
             <!-- Delete Confirmation Modal Component -->
             <x-modal.delete-confirmation>
-                <div x-data="{ isBulk: isBulk, itemName: itemName, deleteRoute: deleteRoute, ids: selected }">
-                    <x-slot:title>{{ __('common.transaction.delete_title') }}</x-slot:title>
-                    <template x-if="isBulk">
-                        <span>{{ __('common.transaction.delete_warning') }} <span x-text="itemName"></span></span>
-                    </template>
-                    <template x-if="!isBulk">
-                        {{ __('common.transaction.delete_warning') }}
-                    </template>
-                    <form x-show="isBulk" :action="deleteRoute" method="POST" class="mt-4">
-                        @csrf
-                        @method('DELETE')
-                        <input type="hidden" name="ids" :value="JSON.stringify(ids)">
-                        <button type="submit" class="btn bg-red-600 text-white cursor-pointer">{{ __('common.actions.delete') }}</button>
-                    </form>
-                </div>
+                <x-slot:title>{{ __('common.transaction.delete_title') }}</x-slot:title>
+                {{ __('common.transaction.delete_warning') }}
             </x-modal.delete-confirmation>
 
             <!-- Bulk Status Confirmation Modal -->
@@ -200,4 +225,26 @@
             </div>
         </div>
     </div>
+
+    <script>
+    function printPdf(pdfPath, transactionId) {
+        window.open('/transactions/print-pdf/' + transactionId, '_blank');
+        fetch('/transactions/update-status-by-pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ pdf_path: pdfPath })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Gagal update status');
+            }
+        });
+    }
+    </script>
 </x-app-layout>

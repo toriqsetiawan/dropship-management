@@ -73,6 +73,8 @@ return [
         'status_shipped' => 'Dikirim',
         'update_status' => 'Perbarui Status',
         'select_status' => 'Pilih Status',
+        'confirm_update_status' => 'Apakah Anda yakin ingin memperbarui status transaksi yang dipilih?',
+        'print_pdf_title' => 'Cetak PDF',
     ],
     'employees' => 'Karyawan',
     'attendance' => 'Absensi',

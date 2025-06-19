@@ -191,8 +191,8 @@ class TransactionController extends Controller
     public function parsePdf(Request $request)
     {
         $request->validate(['shippingPdf' => 'required|file|mimes:pdf']);
-        $path = $request->file('shippingPdf')->store('shipping_pdfs');
-        $inputPath = storage_path('app/' . $path);
+        $path = $request->file('shippingPdf')->store('shipping_pdfs', 'public');
+        $inputPath = storage_path('app/public/' . $path);
 
         $text = \Spatie\PdfToText\Pdf::getText($inputPath);
         $pages = preg_split('/\f/', $text);
@@ -591,5 +591,42 @@ class TransactionController extends Controller
                 'message' => __('common.status.update_error')
             ], 500);
         }
+    }
+
+    public function updateStatusByPdf(Request $request)
+    {
+        $request->validate([
+            'pdf_path' => 'required|string'
+        ]);
+        $updated = Transaction::where('shipping_pdf_path', $request->pdf_path)
+            ->where('status', 'pending')
+            ->update(['status' => 'processed']);
+        return response()->json([
+            'success' => true,
+            'updated' => $updated
+        ]);
+    }
+
+    /**
+     * Show print PDF view for transaction
+     *
+     * @param Transaction $transaction
+     * @return \Illuminate\View\View
+     */
+    public function printPdfView(Transaction $transaction)
+    {
+        // Database menyimpan: shipping_pdfs/filename.pdf
+        // Kita perlu: storage/shipping_pdfs/filename.pdf
+        $pdfPath = 'storage/' . $transaction->shipping_pdf_path;
+
+        // Pastikan file ada
+        if (!file_exists(public_path($pdfPath))) {
+            abort(404, 'PDF not found: ' . $pdfPath);
+        }
+
+        return view('pages.transactions.print-pdf', [
+            'transaction' => $transaction,
+            'pdfPath' => asset($pdfPath),
+        ]);
     }
 }
